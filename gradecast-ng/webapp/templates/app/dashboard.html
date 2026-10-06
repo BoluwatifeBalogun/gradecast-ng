@@ -1,0 +1,120 @@
+{% extends "app/layout.html" %}
+{% import "macros.html" as ui %}
+{% block title %}Dashboard | {{ app_name }}{% endblock %}
+{% block heading %}{{ 'All predictions' if g.user.role == 'admin' else 'Your dashboard' }}{% endblock %}
+{% block subheading %}<p>{% if g.user.role == 'admin' %}Every prediction made on this system.{% elif g.user.role == 'student' %}Your predictions and how they have changed.{% else %}The students you have screened so far.{% endif %}</p>{% endblock %}
+{% block actions %}<a class="btn btn-shimmer" href="{{ url_for('main.predict') }}">{{ icon('sparkles') }} New prediction</a>{% endblock %}
+
+{% block content %}
+{% if has_sample %}
+<div class="notice">{{ icon('info') }}<span>Records with a reference starting <b>SAMPLE</b> are demonstration data: real rows from the training dataset under invented names.{% if g.user.role == 'admin' %} Remove them from <a href="{{ url_for('admin.datasets') }}">Datasets</a>.{% endif %}</span></div>
+{% endif %}
+
+{% if total == 0 %}
+<div class="card empty">
+  <div class="empty-icon">{{ icon('sparkles', 28) }}</div>
+  <h3>No predictions yet</h3>
+  <p>Enter a student's details and the ensemble will estimate their class of result, with the reasons behind it.</p>
+  <a class="btn" href="{{ url_for('main.predict') }}">Make the first prediction</a>
+</div>
+{% else %}
+<div class="grid cols-4">
+  <div class="card kpi spot reveal">
+    <div class="kpi-top"><span>Predictions made</span><span class="kpi-icon">{{ icon('activity') }}</span></div>
+    <strong data-count="{{ total }}">{{ total }}</strong><small>students screened</small>
+  </div>
+  <div class="card kpi spot reveal" style="--i:1">
+    <div class="kpi-top"><span>At risk</span><span class="kpi-icon warn">{{ icon('triangle-alert') }}</span></div>
+    <strong data-count="{{ by_risk['At risk'] }}">{{ by_risk['At risk'] }}</strong><small>predicted Pass or Fail ({{ (by_risk['At risk'] / total)|pct }})</small>
+  </div>
+  <div class="card kpi spot reveal" style="--i:2">
+    <div class="kpi-top"><span>On track</span><span class="kpi-icon">{{ icon('trending-up') }}</span></div>
+    <strong data-count="{{ by_risk['On track'] }}">{{ by_risk['On track'] }}</strong><small>predicted Upper Second or First Class</small>
+  </div>
+  <div class="card kpi spot reveal" style="--i:3">
+    <div class="kpi-top"><span>Model accuracy</span><span class="kpi-icon">{{ icon('gauge') }}</span></div>
+    {% if metrics %}<strong data-count="{{ '%.1f'|format(metrics.results.ensemble.accuracy * 100) }}" data-suffix="%">{{ metrics.results.ensemble.accuracy|pct(1) }}</strong><small>on held-out students. <a href="{{ url_for('main.insights') }}">Details</a></small>
+    {% else %}<strong>n/a</strong><small>model not trained</small>{% endif %}
+  </div>
+</div>
+
+<div class="grid cols-2-1" style="margin-top:16px">
+  <div class="card reveal">
+    <div class="card-head"><h2>Predicted class of result</h2><p>Number of students in each class</p></div>
+    <div class="chart-box"><canvas id="chart-classes" role="img" aria-label="Bar chart of students per predicted class: {% for c in CLASSES %}{{ c }} {{ by_class[loop.index0] }}{% if not loop.last %}, {% endif %}{% endfor %}"></canvas></div>
+  </div>
+  <div class="card reveal" style="--i:1">
+    <div class="card-head"><h2>Risk level</h2></div>
+    <div class="chart-box"><canvas id="chart-risk" role="img" aria-label="Doughnut chart: {{ by_risk['At risk'] }} at risk, {{ by_risk['Watch'] }} to watch, {{ by_risk['On track'] }} on track"></canvas></div>
+  </div>
+</div>
+
+<div class="grid cols-2" style="margin-top:16px">
+  <div class="card reveal">
+    <div class="card-head"><h2>Activity</h2><p>Predictions per day, last 14 days</p></div>
+    <div class="chart-box short"><canvas id="chart-time" role="img" aria-label="Line chart of predictions per day over the last 14 days"></canvas></div>
+  </div>
+  <div class="card reveal" style="--i:1">
+    <div class="card-head"><h2>At-risk share by geopolitical zone</h2><p>Where support is needed most</p></div>
+    {% if zone_rows %}
+    <div class="drivers">
+      {% for z in zone_rows %}
+      <div class="driver" style="grid-template-columns: 130px 1fr 78px">
+        <div class="driver-label"><strong>{{ z.zone }}</strong></div>
+        <div class="gain" style="height:10px"><i style="--w: {{ z.share|round(3) }}; background: linear-gradient(90deg, var(--c-pass), var(--c-fail))"></i></div>
+        <span class="num" style="text-align:right;font-size:13.5px;color:var(--muted)">{{ z.risk }} of {{ z.n }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="card-sub">Add a state when you make a prediction to see this breakdown.</p>{% endif %}
+  </div>
+</div>
+
+<div class="card reveal" style="margin-top:16px">
+  <div class="card-head"><h2>Latest predictions</h2><a href="{{ url_for('main.history') }}">View all</a></div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Student</th><th scope="col">Predicted class</th><th scope="col">Confidence</th><th scope="col">Risk</th><th scope="col">State</th><th scope="col">When</th></tr></thead>
+      <tbody>
+        {% for p in recent %}
+        <tr>
+          <td><a class="row-link" href="{{ url_for('main.prediction', pid=p.id) }}">{{ p.student_name }}</a><span class="sub">{{ p.student_ref or 'No reference' }}</span></td>
+          <td>{{ ui.class_badge(p.label) }}</td>
+          <td class="num">{{ p.confidence|pct }}</td>
+          <td><span class="badge {{ p.risk|slug }}">{{ p.risk }}</span></td>
+          <td>{{ p.state or '' }}</td>
+          <td class="num">{{ p.created_at|dt('short') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if total %}
+<script src="{{ url_for('static', filename='vendor/chart.umd.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var colors = GC.classColors, grid = GC.grid;
+  new Chart(document.getElementById('chart-classes'), {
+    type: 'bar',
+    data: { labels: {{ CLASSES|tojson }}, datasets: [{ data: {{ by_class|tojson }}, backgroundColor: colors, borderRadius: 10, maxBarThickness: 64 }] },
+    options: { plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, grid: grid, border: { display: false } } } }
+  });
+  new Chart(document.getElementById('chart-risk'), {
+    type: 'doughnut',
+    data: { labels: ['At risk', 'Watch', 'On track'], datasets: [{ data: {{ [by_risk['At risk'], by_risk['Watch'], by_risk['On track']]|tojson }}, backgroundColor: ['#d24b35', '#e3a322', '#00875a'], borderWidth: 3, borderColor: '#fff', hoverOffset: 6 }] },
+    options: { cutout: '66%', plugins: { legend: { position: 'bottom' } } }
+  });
+  new Chart(document.getElementById('chart-time'), {
+    type: 'line',
+    data: { labels: {{ timeline.labels|tojson }}, datasets: [{ data: {{ timeline['values']|tojson }}, borderColor: '#008751', backgroundColor: 'rgba(0,135,81,.12)', fill: true, cubicInterpolationMode: 'monotone', pointRadius: 3, pointBackgroundColor: '#fff', pointBorderWidth: 2 }] },
+    options: { plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 7 } }, y: { beginAtZero: true, ticks: { precision: 0 }, grid: grid, border: { display: false } } } }
+  });
+});
+</script>
+{% endif %}
+{% endblock %}

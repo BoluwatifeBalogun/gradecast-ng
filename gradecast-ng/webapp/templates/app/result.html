@@ -1,0 +1,121 @@
+{% extends "app/layout.html" %}
+{% import "macros.html" as ui %}
+{% block title %}{{ p.student_name }}: {{ p.label }} | {{ app_name }}{% endblock %}
+{% block heading %}{{ p.student_name }}{% endblock %}
+{% block subheading %}<p>{{ p.student_ref or 'No reference number' }}{% if p.institution_type %}, {{ p.institution_type }}{% endif %}{% if p.state %}, {{ p.state }} ({{ p.zone }}){% endif %}. Predicted {{ p.created_at|dt }}{% if g.user.role == 'admin' %} by {{ p.owner }}{% endif %}.</p>{% endblock %}
+{% block actions %}
+<button class="btn btn-ghost" type="button" onclick="window.print()">{{ icon('printer') }} Print</button>
+<a class="btn" href="{{ url_for('main.predict') }}">{{ icon('sparkles') }} New prediction</a>
+{% endblock %}
+
+{% set fmap = {} %}{% for f in features %}{% set _ = fmap.update({f.name: f}) %}{% endfor %}
+{% macro show(name, value) -%}{{ value }}{% if fmap[name].kind == 'num' and fmap[name].unit %}{{ ' ' ~ fmap[name].unit if fmap[name].unit == 'hrs' else fmap[name].unit }}{% endif %}{%- endmacro %}
+
+{% macro show_raw(value, unit) -%}{{ value }}{{ ' ' ~ unit if unit == 'hrs' else unit }}{%- endmacro %}
+{% block content %}
+{% if stale %}<div class="notice warn no-print">{{ icon('info') }}<span>The model has been retrained since this prediction. The class shown is the one recorded at the time. The explanation below uses the current model.</span></div>{% endif %}
+
+{% if out_of_range %}<div class="notice warn">{{ icon('triangle-alert') }}<span>{% for o in out_of_range %}<b>{{ o.label }}</b> of {{ show_raw(o.value, o.unit) }} is outside what the model was trained on ({{ o.low }} to {{ o.high }}), so it was treated as {{ show_raw(o.edge, o.unit) }}. {% endfor %}Read this prediction as a rough guide.</span></div>{% endif %}
+
+<section class="verdict" aria-labelledby="verdict-title">
+  <div class="band-glow" aria-hidden="true"></div>
+  <div>
+    <p class="verdict-kicker">Predicted class of result</p>
+    <h2 id="verdict-title">{{ p.label }}</h2>
+    <p>{% if p.risk == 'At risk' %}This student is likely to struggle without support. Start with the suggestions below.{% elif p.risk == 'Watch' %}A steady pass is likely, with room to move up a class. Small changes could make the difference.{% else %}This student is on course for a strong result. Keep the current habits in place.{% endif %}</p>
+    <div class="verdict-meta">
+      <span class="chip">{{ icon('gauge', 15) }} {{ p.confidence|pct }} confidence</span>
+      <span class="chip">{{ icon('shield-check' if p.risk == 'On track' else 'triangle-alert', 15) }} {{ p.risk }}</span>
+      <span class="chip">{{ icon('vote', 15) }} {{ 'Both models agree' if agree else 'Models split, vote decided' }}</span>
+    </div>
+  </div>
+  {{ ui.ladder(proba, top=p.label_index) }}
+</section>
+
+<div class="grid cols-2">
+  <div class="stack">
+    <div class="card reveal">
+      <div class="card-head"><h2>How the two models voted</h2><p>Soft voting, Gradient Boosting weighted double</p></div>
+      <div class="voters">
+        {% for key, name in [('random_forest', 'Random Forest'), ('gradient_boosting', 'Gradient Boosting')] %}
+        <div class="voter">
+          <div class="voter-head"><strong>{{ name }}</strong>{{ ui.class_badge(votes[key].label) }}</div>
+          <div class="voter-bars" role="img" aria-label="{{ name }} probabilities: {% for c in CLASSES %}{{ c }} {{ votes[key].proba[loop.index0]|pct }}{% if not loop.last %}, {% endif %}{% endfor %}">
+            {% for v in votes[key].proba %}<i style="--p: {{ '%.3f'|format(v) }}"></i>{% endfor %}
+          </div>
+          <small>Fail to First Class, left to right. Top choice at {{ votes[key].proba|max|pct }}.</small>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if explanation and explanation.drivers %}
+    <div class="card reveal">
+      <div class="card-head"><h2>What is driving this prediction</h2><p>Compared with a typical student</p></div>
+      {% set scale = explanation.drivers|map(attribute='effect')|map('abs')|max %}
+      <div class="drivers">
+        {% for d in explanation.drivers %}
+        <div class="driver">
+          <div class="driver-label"><strong>{{ d.label }}</strong><span>{{ show(d.name, d.current) }}, typical is {{ show(d.name, d.value) }}</span></div>
+          <div class="driver-bar {{ 'pos' if d.effect > 0 else 'neg' }}" role="img" aria-label="{{ 'Lifts' if d.effect > 0 else 'Lowers' }} the prediction"><i style="--w: {{ ((d.effect|abs) / scale)|round(3) }}"></i></div>
+        </div>
+        {% endfor %}
+        <div class="driver-axis"><span>Lowers the result</span><span>Lifts the result</span></div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="stack">
+    <div class="card reveal" style="--i:1">
+      <div class="card-head"><h2>What would help most</h2><p>Best first, each added to the one before</p></div>
+      {% if support_note %}<div class="notice">{{ icon('heart-handshake') }}<span>{{ support_note }}</span></div>{% endif %}
+      {% if explanation and explanation.levers %}
+      {% set top_gain = explanation.levers|map(attribute='gain')|max %}
+      <div class="levers">
+        {% for l in explanation.levers %}
+        <article class="lever spot">
+          <div class="lever-top">
+            <h3>{{ l.advice.title }}</h3>
+            <span class="lever-change"><span class="from">{{ show(l.name, l.current) }}</span>{{ icon('arrow-right', 14) }}<span class="to">{{ show(l.name, l.value) }}</span></span>
+          </div>
+          <div class="gain" role="img" aria-label="Relative effect on the prediction"><i style="--w: {{ (l.gain / top_gain)|round(3) }}"></i></div>
+          <p>{{ l.advice.body }}</p>
+          {% if loop.first and l.alone_label != p.label and not stale %}<p style="color:var(--forest);font-weight:600">On its own, this moves the prediction to {{ l.alone_label }}.</p>{% endif %}
+        </article>
+        {% endfor %}
+      </div>
+      {% if explanation.combined and explanation.combined.index > p.label_index and not stale %}
+      <div class="notice" style="margin:16px 0 0">{{ icon('lightbulb') }}<span>Together, {{ 'these ' ~ explanation.combined.changes|length ~ ' changes move' if explanation.combined.changes|length > 1 else 'this change moves' }} the prediction from <b>{{ p.label }}</b> to <b>{{ explanation.combined.label }}</b>.</span></div>
+      {% endif %}
+      {% elif explanation %}
+      <div class="empty" style="padding:24px 8px">
+        <div class="empty-icon">{{ icon('badge-check', 28) }}</div>
+        <h3>Nothing obvious to fix</h3>
+        <p>The attributes this student can change are already strong. Keep them where they are.</p>
+      </div>
+      {% else %}
+      <p class="card-sub">Suggestions are unavailable until the model is trained.</p>
+      {% endif %}
+      <p class="card-sub" style="margin-top:16px">Suggestions come from asking the model "what if this changed?", one step at a time. They show what the model responds to and do not guarantee an outcome.</p>
+    </div>
+  </div>
+</div>
+
+<div class="card reveal" style="margin-top:16px">
+  <div class="card-head"><h2>Details entered</h2><p>The 19 attributes the model received</p></div>
+  <dl class="inputs-grid" style="margin:0">
+    {% for key, title, _ in groups %}
+    <h3>{{ title }}</h3>
+    {% for f in features if f.group == key %}<div><dt>{{ f.label }}</dt><dd>{{ show(f.name, inputs[f.name]) }}</dd></div>{% endfor %}
+    {% endfor %}
+  </dl>
+</div>
+
+<p class="print-only" style="margin-top:16px;font-size:12.5px;color:var(--muted)">GradeCast NG, model version {{ p.model_version }}. Printed for {{ g.user.name }}. This is an early-warning estimate from a machine learning model. It supports academic advising and is not an examination result.</p>
+
+<form class="no-print" method="post" action="{{ url_for('main.prediction_delete', pid=p.id) }}" data-confirm="Delete the prediction for {{ p.student_name }}? This cannot be undone." style="margin-top:20px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="btn btn-danger btn-sm" type="submit">{{ icon('trash-2', 16) }} Delete this prediction</button>
+</form>
+{% endblock %}

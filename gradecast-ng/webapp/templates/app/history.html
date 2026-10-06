@@ -1,0 +1,57 @@
+{% extends "app/layout.html" %}
+{% import "macros.html" as ui %}
+{% block title %}History | {{ app_name }}{% endblock %}
+{% block heading %}History{% endblock %}
+{% block subheading %}<p>{{ total }} prediction{{ 's' if total != 1 }}{{ ' match these filters' if filtered else ' on record' }}.</p>{% endblock %}
+{% block actions %}
+<a class="btn btn-ghost" href="{{ url_for('main.history_export', **filters) }}">{{ icon('download') }} Export CSV</a>
+<a class="btn" href="{{ url_for('main.predict') }}">{{ icon('sparkles') }} New prediction</a>
+{% endblock %}
+{% block content %}
+<div class="card">
+  <form class="filters" method="get" role="search">
+    <div class="search">{{ icon('search') }}<label class="sr-only" for="q">Search by name or reference</label><input class="input" id="q" name="q" value="{{ filters.q }}" placeholder="Search by name or reference"></div>
+    <label class="sr-only" for="label">Class</label>
+    <select class="select" id="label" name="label"><option value="">Every class</option>{% for c in CLASSES|reverse %}<option {{ 'selected' if filters.label == c }}>{{ c }}</option>{% endfor %}</select>
+    <label class="sr-only" for="risk">Risk level</label>
+    <select class="select" id="risk" name="risk"><option value="">Every risk level</option>{% for r in ['At risk', 'Watch', 'On track'] %}<option {{ 'selected' if filters.risk == r }}>{{ r }}</option>{% endfor %}</select>
+    <button class="btn btn-sm" type="submit" style="min-height:44px">Apply filters</button>
+    {% if filtered %}<a class="btn btn-ghost btn-sm" style="min-height:44px" href="{{ url_for('main.history') }}">Clear</a>{% endif %}
+  </form>
+
+  {% if rows %}
+  <div class="table-wrap" style="margin-bottom:0">
+    <table class="table">
+      <thead><tr><th scope="col">Student</th><th scope="col">Predicted class</th><th scope="col">Confidence</th><th scope="col">Risk</th><th scope="col">Institution</th><th scope="col">State</th>{% if g.user.role == 'admin' %}<th scope="col">Made by</th>{% endif %}<th scope="col">When</th></tr></thead>
+      <tbody>
+        {% for p in rows %}
+        <tr>
+          <td><a class="row-link" href="{{ url_for('main.prediction', pid=p.id) }}">{{ p.student_name }}</a><span class="sub">{{ p.student_ref or 'No reference' }}</span></td>
+          <td>{{ ui.class_badge(p.label) }}</td>
+          <td class="num">{{ p.confidence|pct }}</td>
+          <td><span class="badge {{ p.risk|slug }}">{{ p.risk }}</span></td>
+          <td>{{ p.institution_type or '' }}</td>
+          <td>{{ p.state or '' }}</td>
+          {% if g.user.role == 'admin' %}<td>{{ p.owner }}</td>{% endif %}
+          <td class="num">{{ p.created_at|dt('short') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="pager">
+    <span>Page {{ page }} of {{ pages }}</span>
+    <div>
+      {% if page > 1 %}<a class="btn btn-ghost btn-sm" href="{{ url_for('main.history', page=page - 1, **filters) }}">{{ icon('arrow-left', 16) }} Previous</a>{% endif %}
+      {% if page < pages %}<a class="btn btn-ghost btn-sm" href="{{ url_for('main.history', page=page + 1, **filters) }}">Next {{ icon('arrow-right', 16) }}</a>{% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="empty">
+    <div class="empty-icon">{{ icon('search', 28) }}</div>
+    {% if filtered %}<h3>No predictions match these filters</h3><p>Try a different name, class or risk level.</p><a class="btn btn-ghost" href="{{ url_for('main.history') }}">Clear filters</a>
+    {% else %}<h3>No predictions yet</h3><p>Predictions you make are saved here so you can return to them.</p><a class="btn" href="{{ url_for('main.predict') }}">Make the first prediction</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

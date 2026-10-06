@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+{% set role_names = {'student': 'Student', 'officer': 'Academic officer', 'admin': 'Administrator'} %}
+{% macro link(endpoint, label, icon_name, match=None) -%}
+<a class="side-link{% if request.endpoint in (match or [endpoint]) %} is-active{% endif %}" href="{{ url_for(endpoint) }}"{% if request.endpoint in (match or [endpoint]) %} aria-current="page"{% endif %}>{{ icon(icon_name, 19) }} {{ label }}</a>
+{%- endmacro %}
+{% block body %}
+<div class="mobile-bar">
+  {{ ui.brand(url_for('main.dashboard')) }}
+  <button class="menu-btn" id="menu-btn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">{{ icon('menu', 22) }}</button>
+</div>
+<div class="scrim" id="scrim"></div>
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Application">
+    {{ ui.brand(url_for('main.dashboard')) }}
+    {{ link('main.dashboard', 'Dashboard', 'layout-dashboard') }}
+    {{ link('main.predict', 'New prediction', 'sparkles', ['main.predict', 'main.prediction']) }}
+    {{ link('main.history', 'History', 'history') }}
+    {{ link('main.insights', 'Model performance', 'chart-column') }}
+    {% if g.user.role == 'admin' %}
+    <span class="side-label">Administration</span>
+    {{ link('admin.datasets', 'Datasets', 'database') }}
+    {{ link('admin.training', 'Train model', 'cpu') }}
+    {{ link('admin.users', 'Users', 'users') }}
+    {% endif %}
+    <div class="side-foot">
+      <div class="me">
+        <span class="avatar" aria-hidden="true">{{ g.user.name[:1]|upper }}</span>
+        <div><strong>{{ g.user.name }}</strong><span>{{ role_names[g.user.role] }}</span></div>
+      </div>
+      <form method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-ghost btn-sm btn-block" type="submit">{{ icon('log-out', 16) }} Sign out</button>
+      </form>
+    </div>
+  </nav>
+  <main class="main" id="main">
+    <header class="topbar">
+      <div>
+        <h1>{% block heading %}{% endblock %}</h1>
+        {% block subheading %}{% endblock %}
+      </div>
+      <div class="topbar-actions">{% block actions %}{% endblock %}</div>
+    </header>
+    {% if not model_ready() %}
+    <div class="notice warn">{{ icon('triangle-alert') }}<span>The model is not trained yet, so predictions are unavailable. {% if g.user.role == 'admin' %}<a href="{{ url_for('admin.training') }}">Train the model</a>.{% else %}Ask the administrator to train it.{% endif %}</span></div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% endblock %}

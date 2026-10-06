@@ -1,0 +1,10 @@
+<aside class="auth-side">
+  <div class="band-glow" aria-hidden="true"></div>
+  {{ ui.brand(url_for('main.landing')) }}
+  <div style="position:relative">
+    <h1>Know early. Act early.</h1>
+    <p>Two models vote on each student's likely class of result, so support can start before the exam hall.</p>
+    {{ ui.ladder([0.02, 0.08, 0.24, 0.52, 0.14], top=3) }}
+  </div>
+  <p style="position:relative;font-size:13.5px">Trained on the Student Performance Factors dataset. Predictions guide support and never replace assessment.</p>
+</aside>

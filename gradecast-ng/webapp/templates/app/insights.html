@@ -1,0 +1,138 @@
+{% extends "app/layout.html" %}
+{% import "macros.html" as ui %}
+{% block title %}Model performance | {{ app_name }}{% endblock %}
+{% block heading %}Model performance{% endblock %}
+{% block subheading %}{% if m %}<p>Version {{ m.version }}, trained {{ m.trained_at|dt }} on {{ m.dataset.name }}. All scores come from {{ '{:,}'.format(m.dataset.rows_test) }} original students the model never saw.</p>{% endif %}{% endblock %}
+{% block actions %}{% if g.user.role == 'admin' %}<a class="btn" href="{{ url_for('admin.training') }}">{{ icon('cpu') }} Train model</a>{% endif %}{% endblock %}
+
+{% block content %}
+{% if not m %}
+<div class="card empty">
+  <div class="empty-icon">{{ icon('cpu', 28) }}</div>
+  <h3>No trained model yet</h3>
+  <p>{{ load_error or 'Train the ensemble to see its evaluation here.' }}</p>
+  {% if g.user.role == 'admin' %}<a class="btn" href="{{ url_for('admin.training') }}">Train the model</a>{% endif %}
+</div>
+{% else %}
+{% set E = m.results.ensemble %}
+<div class="grid cols-4">
+  {% for label, value, note, ic in [
+    ('Accuracy', E.accuracy, 'exact class correct', 'target'),
+    ('Precision', E.precision_macro, 'macro average', 'shield-check'),
+    ('Recall', E.recall_macro, 'macro average', 'search'),
+    ('F1-score', E.f1_macro, 'macro average', 'scale')] %}
+  <div class="card kpi spot reveal" style="--i:{{ loop.index0 }}">
+    <div class="kpi-top"><span>{{ label }}</span><span class="kpi-icon">{{ icon(ic) }}</span></div>
+    <strong data-count="{{ '%.1f'|format(value * 100) }}" data-suffix="%">{{ value|pct(1) }}</strong><small>{{ note }}</small>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="grid cols-2" style="margin-top:16px">
+  <div class="card reveal">
+    <div class="card-head"><h2>Ensemble against its parts</h2><p>Same training data, same test students</p></div>
+    <div class="chart-box"><canvas id="chart-compare" role="img" aria-label="Grouped bar chart comparing accuracy and F1 of a single decision tree, Random Forest, Gradient Boosting and the voting ensemble"></canvas></div>
+    <div class="table-wrap" style="margin-top:18px">
+      <table class="table" style="min-width:520px">
+        <thead><tr><th scope="col">Model</th><th scope="col" class="right">Accuracy</th><th scope="col" class="right">Precision</th><th scope="col" class="right">Recall</th><th scope="col" class="right">F1</th></tr></thead>
+        <tbody>
+          {% for key, name in [('single_decision_tree', 'Single decision tree'), ('random_forest', 'Random Forest'), ('gradient_boosting', 'Gradient Boosting'), ('ensemble', 'Voting ensemble')] %}
+          <tr><td style="white-space:nowrap">{% if key == 'ensemble' %}<b>{{ name }}</b>{% else %}{{ name }}{% endif %}</td><td class="num right">{{ m.results[key].accuracy|pct(1) }}</td><td class="num right">{{ m.results[key].precision_macro|pct(1) }}</td><td class="num right">{{ m.results[key].recall_macro|pct(1) }}</td><td class="num right">{{ m.results[key].f1_macro|pct(1) }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card reveal" style="--i:1">
+    <div class="card-head"><h2>Confusion matrix</h2><p>Rows are the true class, columns the predicted class</p></div>
+    {% set cm = E.confusion_matrix %}
+    <div class="matrix" role="table" aria-label="Confusion matrix of the voting ensemble">
+      <span class="h"></span>{% for c in CLASSES %}<span class="h" role="columnheader">{{ c }}</span>{% endfor %}
+      {% for i in range(5) %}
+      {% set row_total = cm[i]|sum %}
+      <span class="h row" role="rowheader">{{ CLASSES[i] }}</span>
+      {% for j in range(5) %}{% set v = (cm[i][j] / row_total) if row_total else 0 %}<span class="cell{{ ' hot' if v > 0.55 }}" style="--v: {{ v|round(3) }}" role="cell" title="{{ cm[i][j] }} students truly {{ CLASSES[i] }} were predicted {{ CLASSES[j] }}">{{ cm[i][j] }}</span>{% endfor %}
+      {% endfor %}
+    </div>
+    <div class="matrix-caption"><span>Darker means a larger share of that row</span><span>{{ E.within_one_class|pct(1) }} within one class</span></div>
+    <p class="card-sub" style="margin-top:14px">Almost every miss sits next to the diagonal: the model confuses neighbouring classes, and rarely anything further apart.</p>
+  </div>
+</div>
+
+<div class="grid cols-2" style="margin-top:16px">
+  <div class="card reveal">
+    <div class="card-head"><h2>Which attributes matter most</h2><p>Share of the ensemble's decisions</p></div>
+    <div class="chart-box tall"><canvas id="chart-importance" role="img" aria-label="Horizontal bar chart of feature importance. Top three: {% for f in m.feature_importance[:3] %}{{ f.label }} {{ f.importance|pct }}{% if not loop.last %}, {% endif %}{% endfor %}"></canvas></div>
+  </div>
+  <div class="card reveal" style="--i:1">
+    <div class="card-head"><h2>Class balance before and after SMOTE</h2><p>Training split only</p></div>
+    <div class="chart-box"><canvas id="chart-smote" role="img" aria-label="Grouped bar chart of training records per class before and after SMOTE"></canvas></div>
+    <dl class="kv" style="margin:16px 0 0">
+      <div><dt>Original training records</dt><dd>{{ '{:,}'.format(m.dataset.rows_train_original) }}</dd></div>
+      <div><dt>Synthetic records added</dt><dd>{{ '{:,}'.format(m.dataset.rows_synthetic) }}</dd></div>
+      <div><dt>Balanced training set</dt><dd>{{ '{:,}'.format(m.dataset.rows_train_balanced) }}</dd></div>
+    </dl>
+  </div>
+</div>
+
+<div class="grid cols-2" style="margin-top:16px">
+  <div class="card reveal">
+    <div class="card-head"><h2>Per-class scores</h2><p>Voting ensemble</p></div>
+    <div class="table-wrap">
+      <table class="table" style="min-width:480px">
+        <thead><tr><th scope="col">Class</th><th scope="col" class="right">Precision</th><th scope="col" class="right">Recall</th><th scope="col" class="right">F1</th><th scope="col" class="right">Test students</th></tr></thead>
+        <tbody>{% for c in E.per_class|reverse %}<tr><td>{{ ui.class_badge(c.label) }}</td><td class="num right">{{ c.precision|pct(1) }}</td><td class="num right">{{ c.recall|pct(1) }}</td><td class="num right">{{ c.f1|pct(1) }}</td><td class="num right">{{ c.support }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card reveal" style="--i:1">
+    <div class="card-head"><h2>How this model was built</h2></div>
+    <div class="pipeline">
+      <div><strong>Selection</strong><span>{{ '{:,}'.format(m.dataset.cleaning.rows_raw) }} records loaded from {{ m.dataset.name }}.</span></div>
+      <div><strong>Preprocessing</strong><span>{{ m.dataset.cleaning.missing_cells }} missing values filled, {{ m.dataset.cleaning.dropped_duplicates }} duplicate rows removed, {{ m.dataset.cleaning.scores_capped_at_100 }} exam score{{ 's' if m.dataset.cleaning.scores_capped_at_100 != 1 }} above 100 capped.</span></div>
+      <div><strong>Transformation</strong><span>Categories encoded, exam scores banded at {{ m.cutoffs|map('int')|join(', ') }}, 80/20 stratified split, SMOTE on the training split, numeric values standardised.</span></div>
+      <div><strong>Data mining</strong><span>Random Forest ({{ m.config.rf.n_estimators }} trees) and Gradient Boosting ({{ m.config.gb.n_estimators }} stages) joined by soft voting with weights {{ m.config.weights|join(' to ') }}.</span></div>
+      <div><strong>Evaluation</strong><span>Scored on {{ '{:,}'.format(m.dataset.rows_test) }} held-out original records{% if m.cross_validation %}. Five-fold cross-validation accuracy {{ m.cross_validation.accuracy_mean|pct(1) }}, plus or minus {{ m.cross_validation.accuracy_std|pct(1) }}{% endif %}.</span></div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if m %}
+<script src="{{ url_for('static', filename='vendor/chart.umd.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var m = {{ m|tojson }}, grid = GC.grid;
+  var keys = ['single_decision_tree', 'random_forest', 'gradient_boosting', 'ensemble'];
+  var pct = function (v) { return +(v * 100).toFixed(1); };
+  var pctTick = { callback: function (v) { return v + '%'; } };
+  new Chart(document.getElementById('chart-compare'), {
+    type: 'bar',
+    data: { labels: ['Single tree', ['Random', 'Forest'], ['Gradient', 'Boosting'], ['Voting', 'ensemble']],
+      datasets: [
+        { label: 'Accuracy', data: keys.map(function (k) { return pct(m.results[k].accuracy); }), backgroundColor: '#008751', borderRadius: 8 },
+        { label: 'F1-score', data: keys.map(function (k) { return pct(m.results[k].f1_macro); }), backgroundColor: '#8fd3ad', borderRadius: 8 }] },
+    options: { plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + c.parsed.y + '%'; } } } },
+      scales: { x: { grid: { display: false }, ticks: { maxRotation: 0 } }, y: { min: 0, max: 100, ticks: pctTick, grid: grid, border: { display: false } } } }
+  });
+  var imp = m.feature_importance.slice(0, 12);
+  new Chart(document.getElementById('chart-importance'), {
+    type: 'bar',
+    data: { labels: imp.map(function (f) { return f.label; }), datasets: [{ data: imp.map(function (f) { return pct(f.importance); }), backgroundColor: imp.map(function (_, i) { return i < 3 ? '#008751' : '#8fd3ad'; }), borderRadius: 6 }] },
+    options: { indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (c) { return c.parsed.x + '% of importance'; } } } },
+      scales: { x: { ticks: pctTick, grid: grid, border: { display: false } }, y: { grid: { display: false } } } }
+  });
+  new Chart(document.getElementById('chart-smote'), {
+    type: 'bar',
+    data: { labels: m.classes.map(function (c) { return c.split(' '); }), datasets: [
+      { label: 'Before SMOTE', data: m.class_distribution.train_before, backgroundColor: '#c5e8d3', borderRadius: 8 },
+      { label: 'After SMOTE', data: m.class_distribution.train_after, backgroundColor: '#008751', borderRadius: 8 }] },
+    options: { plugins: { legend: { position: 'bottom' } }, scales: { x: { grid: { display: false }, ticks: { maxRotation: 0 } }, y: { beginAtZero: true, grid: grid, border: { display: false } } } }
+  });
+});
+</script>
+{% endif %}
+{% endblock %}

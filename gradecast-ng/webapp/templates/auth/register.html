@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+{% block title %}Create account | {{ app_name }}{% endblock %}
+{% block body %}
+<div class="auth">
+  {% include "auth/_side.html" %}
+  <main id="main" class="auth-main">
+    <div class="auth-card">
+      <h2>Create account</h2>
+      <p>It takes a minute. Your predictions stay private to you.</p>
+      <form method="post" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field">
+          <span class="label" id="role-label">I am a</span>
+          <div class="seg" role="radiogroup" aria-labelledby="role-label">
+            <input type="radio" name="role" id="role-student" value="student" {{ 'checked' if form.role != 'officer' }}><label for="role-student">Student</label>
+            <input type="radio" name="role" id="role-officer" value="officer" {{ 'checked' if form.role == 'officer' }}><label for="role-officer">Academic officer</label>
+          </div>
+          {{ ui.field_error(errors, 'role') }}
+        </div>
+        <div class="field{{ ' has-error' if errors.name }}">
+          <label for="name">Full name <span class="req" aria-hidden="true">*</span></label>
+          <input class="input" id="name" name="name" autocomplete="name" value="{{ form.name or '' }}" required {% if errors.name %}aria-describedby="err-name" aria-invalid="true"{% endif %}>
+          {{ ui.field_error(errors, 'name') }}
+        </div>
+        <div class="field{{ ' has-error' if errors.email }}">
+          <label for="email">Email address <span class="req" aria-hidden="true">*</span></label>
+          <input class="input" id="email" name="email" type="email" autocomplete="email" value="{{ form.email or '' }}" required {% if errors.email %}aria-describedby="err-email" aria-invalid="true"{% endif %}>
+          {{ ui.field_error(errors, 'email') }}
+        </div>
+        <div class="field">
+          <label for="institution">Institution</label>
+          <input class="input" id="institution" name="institution" autocomplete="organization" value="{{ form.institution or '' }}" placeholder="For example, Yaba College of Technology">
+        </div>
+        <div class="field{{ ' has-error' if errors.password }}">
+          <label for="password">Password <span class="req" aria-hidden="true">*</span></label>
+          <input class="input" id="password" name="password" type="password" autocomplete="new-password" minlength="8" required aria-describedby="pw-hint{% if errors.password %} err-password{% endif %}">
+          <span class="hint" id="pw-hint">At least 8 characters.</span>
+          {{ ui.field_error(errors, 'password') }}
+        </div>
+        <button class="btn btn-lg btn-block" type="submit" data-loading><span class="spinner" aria-hidden="true"></span>Create account</button>
+      </form>
+      <p class="auth-alt">Already registered? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
+    </div>
+  </main>
+</div>
+{% endblock %}

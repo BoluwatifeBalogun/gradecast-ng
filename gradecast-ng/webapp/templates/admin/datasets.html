@@ -1,0 +1,84 @@
+{% extends "app/layout.html" %}
+{% import "macros.html" as ui %}
+{% block title %}Datasets | {{ app_name }}{% endblock %}
+{% block heading %}Datasets{% endblock %}
+{% block subheading %}<p>The active dataset is the one the next training run will use.</p>{% endblock %}
+{% block actions %}<a class="btn" href="{{ url_for('admin.training') }}">{{ icon('cpu') }} Train model</a>{% endblock %}
+{% block content %}
+<div class="grid cols-2-1">
+  <div class="card">
+    <div class="card-head"><h2>Available datasets</h2></div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">File</th><th scope="col" class="right">Rows</th><th scope="col" class="right">Missing values</th><th scope="col">Added</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>
+          {% for d in rows %}
+          <tr>
+            <td><b>{{ d.original_name }}</b><span class="sub">{{ 'Built in (Kaggle, lainguyn123)' if d.is_builtin else 'Uploaded by ' ~ (d.uploader or 'a removed user') }}</span></td>
+            <td class="num right">{{ '{:,}'.format(d.rows) }}</td>
+            <td class="num right">{{ d.missing_cells }}</td>
+            <td class="num">{{ d.created_at|dt('date') }}</td>
+            <td>{% if d.is_active %}<span class="badge on-track">Active</span>{% else %}<span class="badge neutral">Stored</span>{% endif %}</td>
+            <td class="right" style="white-space:nowrap">
+              {% if not d.is_active %}
+              <form class="inline-form" method="post" action="{{ url_for('admin.dataset_activate', did=d.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-ghost btn-sm" type="submit">Set as active</button></form>
+              {% if not d.is_builtin %}<form class="inline-form" method="post" action="{{ url_for('admin.dataset_delete', did=d.id) }}" data-confirm="Delete {{ d.original_name }}? This cannot be undone."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-danger btn-sm" type="submit" aria-label="Delete {{ d.original_name }}">{{ icon('trash-2', 16) }}</button></form>{% endif %}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Upload a dataset</h2></div>
+    <form method="post" action="{{ url_for('admin.dataset_upload') }}" enctype="multipart/form-data" id="upload-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="drop" id="drop">
+        <input type="file" name="file" id="file" accept=".csv,text/csv" required>
+        <span class="empty-icon" style="width:48px;height:48px;border-radius:16px">{{ icon('upload', 22) }}</span>
+        <strong id="drop-title">Choose a CSV file or drop it here</strong>
+        <span>Up to 10 MB, at least 200 rows</span>
+      </label>
+      <button class="btn btn-block" type="submit" data-loading style="margin-top:14px"><span class="spinner" aria-hidden="true"></span>Upload dataset</button>
+    </form>
+    <p class="card-sub" style="margin-top:16px">The file must contain these {{ required|length }} columns. Extra columns are ignored.</p>
+    <div class="cols-list">{% for c in required %}<code>{{ c }}</code>{% endfor %}</div>
+  </div>
+</div>
+
+{% if preview %}
+<div class="card" style="margin-top:16px">
+  <div class="card-head"><h2>Preview of {{ active.original_name }}</h2><p>First {{ preview.rows|length }} rows</p></div>
+  <div class="table-wrap">
+    <table class="preview">
+      <thead><tr>{% for c in preview.columns %}<th scope="col">{{ c }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for r in preview.rows %}<tr>{% for v in r %}<td>{{ v if v != '' else 'missing' }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card" style="margin-top:16px">
+  <div class="card-head"><h2>Sample records</h2><p>{{ sample_count }} on the system</p></div>
+  <p class="card-sub" style="max-width:75ch">Sample records fill the dashboard for a demonstration. Each one is a real row from the built-in dataset, scored by the current model and given an invented name and a random state. They are marked with a SAMPLE reference.</p>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px">
+    <form method="post" action="{{ url_for('admin.sample_add') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-ghost btn-sm" type="submit">{{ icon('plus', 16) }} Add 48 sample records</button></form>
+    {% if sample_count %}<form method="post" action="{{ url_for('admin.sample_clear') }}" data-confirm="Remove all {{ sample_count }} sample records?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-danger btn-sm" type="submit">{{ icon('trash-2', 16) }} Remove sample records</button></form>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var drop = document.getElementById('drop'), file = document.getElementById('file'), title = document.getElementById('drop-title');
+  function named() { if (file.files.length) title.textContent = file.files[0].name; }
+  file.addEventListener('change', named);
+  ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-over'); }); });
+  ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('is-over'); }); });
+  drop.addEventListener('drop', function (e) { if (e.dataTransfer.files.length) { file.files = e.dataTransfer.files; named(); } });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,551 @@
+{
+  "version": "20261005-201555",
+  "trained_at": "2026-10-05T20:15:55+00:00",
+  "duration_seconds": 99.8,
+  "dataset": {
+    "name": "StudentPerformanceFactors.csv",
+    "cleaning": {
+      "rows_raw": 6607,
+      "missing_by_column": {
+        "Parental_Education_Level": 90,
+        "Distance_from_Home": 67,
+        "Teacher_Quality": 78
+      },
+      "missing_cells": 235,
+      "dropped_no_target": 0,
+      "dropped_duplicates": 0,
+      "scores_capped_at_100": 1,
+      "rows_clean": 6607
+    },
+    "rows_train_original": 5285,
+    "rows_train_balanced": 20500,
+    "rows_synthetic": 15215,
+    "rows_test": 1322,
+    "score_min": 55.0,
+    "score_max": 100.0
+  },
+  "classes": [
+    "Fail",
+    "Pass",
+    "Lower Second",
+    "Upper Second",
+    "First Class"
+  ],
+  "cutoffs": [
+    61,
+    64,
+    67,
+    70
+  ],
+  "cutoff_mode": "fixed",
+  "class_distribution": {
+    "full": [
+      316,
+      1136,
+      2147,
+      1925,
+      1083
+    ],
+    "train_before": [
+      253,
+      909,
+      1717,
+      1540,
+      866
+    ],
+    "train_after": [
+      4100,
+      4100,
+      4100,
+      4100,
+      4100
+    ],
+    "test": [
+      63,
+      227,
+      430,
+      385,
+      217
+    ]
+  },
+  "results": {
+    "ensemble": {
+      "accuracy": 0.7980332829046899,
+      "within_one_class": 0.9977307110438729,
+      "precision_macro": 0.8221386589995712,
+      "recall_macro": 0.7727806521113658,
+      "f1_macro": 0.7937229863766233,
+      "precision_weighted": 0.8016154173251216,
+      "recall_weighted": 0.7980332829046899,
+      "f1_weighted": 0.798113404260256,
+      "per_class": [
+        {
+          "label": "Fail",
+          "precision": 0.875,
+          "recall": 0.6666666666666666,
+          "f1": 0.7567567567567568,
+          "support": 63
+        },
+        {
+          "label": "Pass",
+          "precision": 0.7909090909090909,
+          "recall": 0.7665198237885462,
+          "f1": 0.7785234899328859,
+          "support": 227
+        },
+        {
+          "label": "Lower Second",
+          "precision": 0.7669491525423728,
+          "recall": 0.8418604651162791,
+          "f1": 0.802660753880266,
+          "support": 430
+        },
+        {
+          "label": "Upper Second",
+          "precision": 0.7809278350515464,
+          "recall": 0.787012987012987,
+          "f1": 0.7839586028460543,
+          "support": 385
+        },
+        {
+          "label": "First Class",
+          "precision": 0.8969072164948454,
+          "recall": 0.8018433179723502,
+          "f1": 0.8467153284671532,
+          "support": 217
+        }
+      ],
+      "confusion_matrix": [
+        [
+          42,
+          21,
+          0,
+          0,
+          0
+        ],
+        [
+          6,
+          174,
+          47,
+          0,
+          0
+        ],
+        [
+          0,
+          23,
+          362,
+          45,
+          0
+        ],
+        [
+          0,
+          0,
+          62,
+          303,
+          20
+        ],
+        [
+          0,
+          2,
+          1,
+          40,
+          174
+        ]
+      ]
+    },
+    "random_forest": {
+      "accuracy": 0.7413010590015129,
+      "within_one_class": 0.9969742813918305,
+      "precision_macro": 0.7588849164514105,
+      "recall_macro": 0.7066148529809378,
+      "f1_macro": 0.7264210948152979,
+      "precision_weighted": 0.7444279219771595,
+      "recall_weighted": 0.7413010590015129,
+      "f1_weighted": 0.7410013083630609,
+      "per_class": [
+        {
+          "label": "Fail",
+          "precision": 0.8048780487804879,
+          "recall": 0.5238095238095238,
+          "f1": 0.6346153846153846,
+          "support": 63
+        },
+        {
+          "label": "Pass",
+          "precision": 0.679324894514768,
+          "recall": 0.7092511013215859,
+          "f1": 0.6939655172413793,
+          "support": 227
+        },
+        {
+          "label": "Lower Second",
+          "precision": 0.7167755991285403,
+          "recall": 0.7651162790697674,
+          "f1": 0.7401574803149606,
+          "support": 430
+        },
+        {
+          "label": "Upper Second",
+          "precision": 0.7454068241469817,
+          "recall": 0.7376623376623377,
+          "f1": 0.741514360313316,
+          "support": 385
+        },
+        {
+          "label": "First Class",
+          "precision": 0.8480392156862745,
+          "recall": 0.7972350230414746,
+          "f1": 0.8218527315914489,
+          "support": 217
+        }
+      ],
+      "confusion_matrix": [
+        [
+          33,
+          30,
+          0,
+          0,
+          0
+        ],
+        [
+          8,
+          161,
+          58,
+          0,
+          0
+        ],
+        [
+          0,
+          44,
+          329,
+          57,
+          0
+        ],
+        [
+          0,
+          0,
+          70,
+          284,
+          31
+        ],
+        [
+          0,
+          2,
+          2,
+          40,
+          173
+        ]
+      ]
+    },
+    "gradient_boosting": {
+      "accuracy": 0.802571860816944,
+      "within_one_class": 0.9977307110438729,
+      "precision_macro": 0.8185903930241857,
+      "recall_macro": 0.7766612904441855,
+      "f1_macro": 0.7948606111706596,
+      "precision_weighted": 0.8051863931126302,
+      "recall_weighted": 0.802571860816944,
+      "f1_weighted": 0.8025643968835422,
+      "per_class": [
+        {
+          "label": "Fail",
+          "precision": 0.84,
+          "recall": 0.6666666666666666,
+          "f1": 0.7433628318584071,
+          "support": 63
+        },
+        {
+          "label": "Pass",
+          "precision": 0.7918552036199095,
+          "recall": 0.7709251101321586,
+          "f1": 0.78125,
+          "support": 227
+        },
+        {
+          "label": "Lower Second",
+          "precision": 0.7784946236559139,
+          "recall": 0.8418604651162791,
+          "f1": 0.8089385474860336,
+          "support": 430
+        },
+        {
+          "label": "Upper Second",
+          "precision": 0.7851662404092071,
+          "recall": 0.7974025974025974,
+          "f1": 0.7912371134020618,
+          "support": 385
+        },
+        {
+          "label": "First Class",
+          "precision": 0.8974358974358975,
+          "recall": 0.8064516129032258,
+          "f1": 0.8495145631067961,
+          "support": 217
+        }
+      ],
+      "confusion_matrix": [
+        [
+          42,
+          21,
+          0,
+          0,
+          0
+        ],
+        [
+          8,
+          175,
+          44,
+          0,
+          0
+        ],
+        [
+          0,
+          23,
+          362,
+          45,
+          0
+        ],
+        [
+          0,
+          0,
+          58,
+          307,
+          20
+        ],
+        [
+          0,
+          2,
+          1,
+          39,
+          175
+        ]
+      ]
+    },
+    "single_decision_tree": {
+      "accuracy": 0.5620272314674736,
+      "within_one_class": 0.9720121028744326,
+      "precision_macro": 0.5559499979868594,
+      "recall_macro": 0.5676917575981328,
+      "f1_macro": 0.5601225512514508,
+      "precision_weighted": 0.5637993296827405,
+      "recall_weighted": 0.5620272314674736,
+      "f1_weighted": 0.5613159366292673,
+      "per_class": [
+        {
+          "label": "Fail",
+          "precision": 0.4864864864864865,
+          "recall": 0.5714285714285714,
+          "f1": 0.5255474452554745,
+          "support": 63
+        },
+        {
+          "label": "Pass",
+          "precision": 0.5125,
+          "recall": 0.5418502202643172,
+          "f1": 0.5267665952890792,
+          "support": 227
+        },
+        {
+          "label": "Lower Second",
+          "precision": 0.5562632696390658,
+          "recall": 0.6093023255813953,
+          "f1": 0.58157602663707,
+          "support": 430
+        },
+        {
+          "label": "Upper Second",
+          "precision": 0.5562310030395137,
+          "recall": 0.4753246753246753,
+          "f1": 0.5126050420168067,
+          "support": 385
+        },
+        {
+          "label": "First Class",
+          "precision": 0.6682692307692307,
+          "recall": 0.6405529953917051,
+          "f1": 0.6541176470588236,
+          "support": 217
+        }
+      ],
+      "confusion_matrix": [
+        [
+          36,
+          22,
+          5,
+          0,
+          0
+        ],
+        [
+          32,
+          123,
+          69,
+          1,
+          2
+        ],
+        [
+          5,
+          83,
+          262,
+          74,
+          6
+        ],
+        [
+          0,
+          11,
+          130,
+          183,
+          61
+        ],
+        [
+          1,
+          1,
+          5,
+          71,
+          139
+        ]
+      ]
+    }
+  },
+  "cross_validation": {
+    "folds": 5,
+    "accuracy_mean": 0.7950649407167586,
+    "accuracy_std": 0.005393448161472987,
+    "f1_macro_mean": 0.7833355374166169,
+    "f1_macro_std": 0.013513098753683986,
+    "accuracy_per_fold": [
+      0.7934947049924357,
+      0.802571860816944,
+      0.7865253595760787,
+      0.7986373959121877,
+      0.7940953822861468
+    ]
+  },
+  "feature_importance": [
+    {
+      "name": "Attendance",
+      "label": "Class attendance",
+      "importance": 0.3743998251179774
+    },
+    {
+      "name": "Hours_Studied",
+      "label": "Hours studied per week",
+      "importance": 0.28431432264523393
+    },
+    {
+      "name": "Previous_Scores",
+      "label": "Previous score",
+      "importance": 0.06834570179136355
+    },
+    {
+      "name": "Parental_Involvement",
+      "label": "Parental involvement",
+      "importance": 0.04781187265628364
+    },
+    {
+      "name": "Access_to_Resources",
+      "label": "Access to learning resources",
+      "importance": 0.042891686611761536
+    },
+    {
+      "name": "Tutoring_Sessions",
+      "label": "Tutoring sessions per month",
+      "importance": 0.035099360556902326
+    },
+    {
+      "name": "Parental_Education_Level",
+      "label": "Parents' education",
+      "importance": 0.01839728829853021
+    },
+    {
+      "name": "Peer_Influence",
+      "label": "Peer influence",
+      "importance": 0.01699151901632928
+    },
+    {
+      "name": "Family_Income",
+      "label": "Family income",
+      "importance": 0.015701798309989707
+    },
+    {
+      "name": "Motivation_Level",
+      "label": "Motivation level",
+      "importance": 0.014622079856613393
+    },
+    {
+      "name": "Physical_Activity",
+      "label": "Physical activity per week",
+      "importance": 0.01311564645967158
+    },
+    {
+      "name": "Distance_from_Home",
+      "label": "Distance from home",
+      "importance": 0.012677909763361972
+    },
+    {
+      "name": "Sleep_Hours",
+      "label": "Sleep per night",
+      "importance": 0.010809313846638358
+    },
+    {
+      "name": "Teacher_Quality",
+      "label": "Teaching quality",
+      "importance": 0.010254310211236892
+    },
+    {
+      "name": "Learning_Disabilities",
+      "label": "Learning disability",
+      "importance": 0.009178837376961633
+    },
+    {
+      "name": "Extracurricular_Activities",
+      "label": "Extracurricular activities",
+      "importance": 0.008096840250567023
+    },
+    {
+      "name": "School_Type",
+      "label": "Previous school type",
+      "importance": 0.006929301036812226
+    },
+    {
+      "name": "Internet_Access",
+      "label": "Internet access",
+      "importance": 0.005862276930162604
+    },
+    {
+      "name": "Gender",
+      "label": "Gender",
+      "importance": 0.0045001092636027295
+    }
+  ],
+  "config": {
+    "test_size": 0.2,
+    "random_state": 42,
+    "min_balanced_rows": 20000,
+    "smote_k_neighbors": 5,
+    "rf": {
+      "n_estimators": 250,
+      "max_features": 0.5,
+      "min_samples_leaf": 2,
+      "n_jobs": -1,
+      "random_state": 42
+    },
+    "gb": {
+      "n_estimators": 300,
+      "max_depth": 3,
+      "learning_rate": 0.1,
+      "subsample": 0.8,
+      "random_state": 42
+    },
+    "voting": "soft",
+    "weights": [
+      1,
+      2
+    ]
+  },
+  "library_versions": {
+    "scikit-learn": "1.8.0",
+    "imbalanced-learn": "0.14.2",
+    "pandas": "3.0.2",
+    "numpy": "2.4.4"
+  }
+}

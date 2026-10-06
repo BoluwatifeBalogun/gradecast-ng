@@ -1,0 +1,92 @@
+{% extends "app/layout.html" %}
+{% import "macros.html" as ui %}
+{% block title %}New prediction | {{ app_name }}{% endblock %}
+{% block heading %}New prediction{% endblock %}
+{% block subheading %}<p>Five short steps. Every field starts at the value of a typical student, so change only what differs.</p>{% endblock %}
+
+{% macro feature_field(f) %}
+<div class="field{{ ' has-error' if errors.get(f.name) }}">
+  {% if f.kind == 'num' %}
+  <div class="slider">
+    <div class="slider-top"><label for="f-{{ f.name }}">{{ f.label }}</label><output for="f-{{ f.name }}">{{ values[f.name] }}{{ f.unit and (' ' ~ f.unit if f.unit == 'hrs' else f.unit) }}</output></div>
+    <input type="range" id="f-{{ f.name }}" name="{{ f.name }}" min="{{ f.min }}" max="{{ f.max }}" step="{{ f.step }}" value="{{ values[f.name] }}" data-unit="{{ f.unit and (' ' ~ f.unit if f.unit == 'hrs' else f.unit) }}" aria-describedby="hint-{{ f.name }}">
+  </div>
+  {% else %}
+  <span class="label" id="lab-{{ f.name }}">{{ f.label }}</span>
+  <div class="seg" role="radiogroup" aria-labelledby="lab-{{ f.name }}" aria-describedby="hint-{{ f.name }}">
+    {% for o in f.options %}
+    <input type="radio" name="{{ f.name }}" id="f-{{ f.name }}-{{ loop.index }}" value="{{ o }}" {{ 'checked' if values[f.name] == o }}><label for="f-{{ f.name }}-{{ loop.index }}">{{ o }}</label>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <span class="hint" id="hint-{{ f.name }}">{{ f.help }}{% if f.kind == 'num' and ranges.get(f.name) and (ranges[f.name][0] > f.min or ranges[f.name][1] < f.max) %} The model was trained on {{ ranges[f.name][0] }} to {{ ranges[f.name][1] }}.{% endif %}</span>
+  {{ ui.field_error(errors, f.name) }}
+</div>
+{% endmacro %}
+
+{% block content %}
+<form class="card wizard" method="post" id="wizard" novalidate data-start="{{ first_error_step }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if errors %}<div class="form-error" role="alert" style="margin-bottom:18px">{{ icon('circle-alert') }}<span>{{ errors|length }} field{{ 's' if errors|length != 1 }} need{{ 's' if errors|length == 1 }} attention before the prediction can run.</span></div>{% endif %}
+
+  <div class="progress" role="tablist" aria-label="Steps">
+    <button type="button" role="tab" data-go="0"><span>Student</span></button>
+    {% for key, title, _ in groups %}<button type="button" role="tab" data-go="{{ loop.index }}"><span>{{ title }}</span></button>{% endfor %}
+  </div>
+  <p class="step-count" aria-live="polite">Step <b id="step-now">1</b> of 5</p>
+
+  <section class="panel" data-panel="0" aria-labelledby="p0-title">
+    <h2 id="p0-title">Who is this prediction for?</h2>
+    <p>These details label the record. They are not used by the model.</p>
+    <div class="fields">
+      <div class="field{{ ' has-error' if errors.student_name }}">
+        <label for="student_name">Student name <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" id="student_name" name="student_name" value="{{ record.student_name or '' }}" required maxlength="80" autocomplete="off" {% if errors.student_name %}aria-invalid="true" aria-describedby="err-student_name"{% endif %}>
+        {{ ui.field_error(errors, 'student_name') }}
+      </div>
+      <div class="field">
+        <label for="student_ref">Matric or reference number</label>
+        <input class="input" id="student_ref" name="student_ref" value="{{ record.student_ref or '' }}" maxlength="40" placeholder="For example, F/HD/24/3211008" autocomplete="off">
+      </div>
+      <div class="field{{ ' has-error' if errors.institution_type }}">
+        <label for="institution_type">Institution type</label>
+        <select class="select" id="institution_type" name="institution_type">
+          <option value="">Not specified</option>
+          {% for t in institution_types %}<option {{ 'selected' if record.institution_type == t }}>{{ t }}</option>{% endfor %}
+        </select>
+        {{ ui.field_error(errors, 'institution_type') }}
+      </div>
+      <div class="field{{ ' has-error' if errors.state }}">
+        <label for="state">State of institution</label>
+        <select class="select" id="state" name="state">
+          <option value="">Not specified</option>
+          {% for s in states %}<option {{ 'selected' if record.state == s }}>{{ s }}</option>{% endfor %}
+        </select>
+        <span class="hint">Used for the breakdown by geopolitical zone.</span>
+        {{ ui.field_error(errors, 'state') }}
+      </div>
+    </div>
+    <div class="wizard-nav"><a class="btn btn-ghost" href="{{ url_for('main.dashboard') }}">Cancel</a><button class="btn" type="button" data-next>Continue {{ icon('arrow-right') }}</button></div>
+  </section>
+
+  {% for key, title, blurb in groups %}
+  <section class="panel" data-panel="{{ loop.index }}" aria-labelledby="p{{ loop.index }}-title">
+    <h2 id="p{{ loop.index }}-title">{{ title }}</h2>
+    <p>{{ blurb }}</p>
+    <div class="fields">
+      {% for f in features if f.group == key %}{{ feature_field(f) }}{% endfor %}
+    </div>
+    <div class="wizard-nav">
+      <button class="btn btn-ghost" type="button" data-back>{{ icon('arrow-left') }} Back</button>
+      {% if loop.last %}
+      <button class="btn btn-shimmer" type="submit" data-loading><span class="spinner" aria-hidden="true"></span>{{ icon('sparkles') }} Predict class of result</button>
+      {% else %}
+      <button class="btn" type="button" data-next>Continue {{ icon('arrow-right') }}</button>
+      {% endif %}
+    </div>
+  </section>
+  {% endfor %}
+</form>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/wizard.js') }}" defer></script>{% endblock %}

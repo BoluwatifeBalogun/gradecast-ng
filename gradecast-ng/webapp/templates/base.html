@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en-NG" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <meta name="description" content="GradeCast NG predicts a student's likely class of result with a Random Forest and Gradient Boosting voting ensemble, so Nigerian institutions can support students before results are released.">
+  <meta name="theme-color" content="#008751">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <link rel="preload" href="{{ url_for('static', filename='fonts/bricolage-grotesque-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <script>document.documentElement.classList.remove('no-js');</script>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <a class="skip-link" href="#main">Skip to main content</a>
+  {% block body %}{% endblock %}
+
+  <div class="toasts" role="status" aria-live="polite">
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+    <div class="toast {{ category }}">
+      {{ icon('circle-check' if category == 'success' else 'circle-alert') }}
+      <span>{{ message }}</span>
+      <button type="button" aria-label="Dismiss message" data-dismiss>{{ icon('x', 16) }}</button>
+    </div>
+    {% endfor %}
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

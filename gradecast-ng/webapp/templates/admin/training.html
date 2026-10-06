@@ -1,0 +1,116 @@
+{% extends "app/layout.html" %}
+{% import "macros.html" as ui %}
+{% block title %}Train model | {{ app_name }}{% endblock %}
+{% block heading %}Train model{% endblock %}
+{% block subheading %}<p>Rebuild the ensemble from the active dataset. The model in use stays live until the new one is ready.</p>{% endblock %}
+{% block content %}
+<div class="grid cols-2">
+  <div class="card">
+    <div class="card-head"><h2>Start a training run</h2></div>
+    {% if active %}
+    <dl class="kv" style="margin:0 0 18px">
+      <div><dt>Active dataset</dt><dd>{{ active.original_name }}</dd></div>
+      <div><dt>Records</dt><dd>{{ '{:,}'.format(active.rows) }}</dd></div>
+      <div><dt>Split</dt><dd>80% train, 20% test, stratified</dd></div>
+      <div><dt>Balancing</dt><dd>SMOTE to over {{ '{:,}'.format(cfg.min_balanced_rows) }} training records</dd></div>
+      <div><dt>Learners</dt><dd>Random Forest ({{ cfg.rf.n_estimators }}) + Gradient Boosting ({{ cfg.gb.n_estimators }})</dd></div>
+      <div><dt>Combination</dt><dd>Soft voting, weights {{ cfg.weights|join(' to ') }}</dd></div>
+    </dl>
+    <form id="train-form" action="{{ url_for('admin.training_start') }}" data-status="{{ url_for('admin.training_status') }}" data-running="{{ 'true' if job.running else 'false' }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="check"><input type="checkbox" name="cross_validate" value="1"><span>Also run five-fold cross-validation<br><span class="hint" style="color:var(--muted);font-size:13.5px">Takes several times longer (up to ten minutes on a small server). Gives a second, more robust accuracy figure.</span></span></label>
+      <button class="btn btn-lg btn-block btn-shimmer" type="submit" id="train-btn" style="margin-top:18px"><span class="spinner" aria-hidden="true"></span>{{ icon('play') }} <span id="train-btn-text">Train the ensemble</span></button>
+    </form>
+    <div id="train-progress" style="margin-top:22px" hidden>
+      <div class="train-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Training progress" id="train-bar"><i></i></div>
+      <div class="train-status"><span id="train-msg" aria-live="polite">Starting</span><span class="num" id="train-pct">0%</span></div>
+    </div>
+    <div class="form-error" id="train-error" role="alert" style="margin-top:16px" hidden>{{ icon('circle-alert') }}<span></span></div>
+    {% else %}
+    <div class="empty" style="padding:24px 8px"><h3>No active dataset</h3><p>Choose a dataset to train on first.</p><a class="btn" href="{{ url_for('admin.datasets') }}">Go to datasets</a></div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Model in use</h2>{% if m %}<span class="badge on-track">Live</span>{% endif %}</div>
+    {% if m %}
+    <dl class="kv" style="margin:0">
+      <div><dt>Version</dt><dd>{{ m.version }}</dd></div>
+      <div><dt>Trained</dt><dd>{{ m.trained_at|dt }}</dd></div>
+      <div><dt>Dataset</dt><dd>{{ m.dataset.name }}</dd></div>
+      <div><dt>Accuracy</dt><dd>{{ m.results.ensemble.accuracy|pct(1) }}</dd></div>
+      <div><dt>F1-score (macro)</dt><dd>{{ m.results.ensemble.f1_macro|pct(1) }}</dd></div>
+      <div><dt>Balanced training records</dt><dd>{{ '{:,}'.format(m.dataset.rows_train_balanced) }}</dd></div>
+      <div><dt>Training time</dt><dd>{{ m.duration_seconds }} s</dd></div>
+    </dl>
+    <a class="btn btn-ghost btn-sm" style="margin-top:16px" href="{{ url_for('main.insights') }}">{{ icon('chart-column', 16) }} Full evaluation</a>
+    {% else %}
+    <div class="empty" style="padding:24px 8px"><div class="empty-icon">{{ icon('cpu', 28) }}</div><h3>No model yet</h3><p>{{ load_error or 'Start a training run to create one.' }}</p></div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <div class="card-head"><h2>Training history</h2></div>
+  {% if runs %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Started</th><th scope="col">Dataset</th><th scope="col">Started by</th><th scope="col">Status</th><th scope="col" class="right">Accuracy</th><th scope="col" class="right">F1</th><th scope="col">Note</th></tr></thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td class="num">{{ r.started_at|dt }}</td><td>{{ r.dataset_name }}</td><td>{{ r.starter or '' }}</td>
+          <td><span class="badge {{ {'Completed': 'on-track', 'Running': 'watch'}.get(r.status, 'fail') }}">{{ r.status }}</span></td>
+          <td class="num right">{{ r.accuracy|pct(1) if r.accuracy is not none else '' }}</td>
+          <td class="num right">{{ r.f1_macro|pct(1) if r.f1_macro is not none else '' }}</td>
+          <td>{{ r.message or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="card-sub">No runs started from this page yet. The model in use was trained from the command line with <code>python train.py</code>.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var form = document.getElementById('train-form');
+  if (!form) return;
+  var btn = document.getElementById('train-btn'), btnText = document.getElementById('train-btn-text');
+  var box = document.getElementById('train-progress'), bar = document.getElementById('train-bar');
+  var msg = document.getElementById('train-msg'), pct = document.getElementById('train-pct');
+  var err = document.getElementById('train-error');
+  var token = form.querySelector('[name=csrf_token]').value;
+
+  function busy(on) { btn.classList.toggle('is-loading', on); btn.disabled = on; btnText.textContent = on ? 'Training in progress' : 'Train the ensemble'; }
+  function fail(text) { err.hidden = false; err.querySelector('span').textContent = text; busy(false); }
+  function paint(s) {
+    box.hidden = false;
+    bar.firstElementChild.style.setProperty('--w', s.percent + '%');
+    bar.setAttribute('aria-valuenow', s.percent);
+    msg.textContent = s.message; pct.textContent = s.percent + '%';
+  }
+  function poll() {
+    fetch(form.dataset.status).then(function (r) { return r.json(); }).then(function (s) {
+      paint(s);
+      if (s.error) return fail('Training failed. ' + s.error);
+      if (s.running) return setTimeout(poll, 900);
+      msg.textContent = 'Training complete. Reloading';
+      setTimeout(function () { window.location.reload(); }, 900);
+    }).catch(function () { setTimeout(poll, 2000); });
+  }
+  form.addEventListener('submit', function (e) {
+    e.preventDefault(); err.hidden = true; busy(true);
+    fetch(form.action, { method: 'POST', headers: { 'X-CSRF-Token': token }, body: new FormData(form) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) { if (!res.ok) return fail(res.d.error || 'Training could not start.'); paint({ percent: 1, message: 'Starting' }); poll(); })
+      .catch(function () { fail('The server did not respond. Check that it is running and try again.'); });
+  });
+  if (form.dataset.running === 'true') { busy(true); poll(); }
+})();
+</script>
+{% endblock %}

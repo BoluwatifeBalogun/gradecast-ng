@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | {{ app_name }}{% endblock %}
+{% block body %}
+<main id="main" class="oops">
+  <div>
+    <strong>{{ code }}</strong>
+    <h1>{{ title }}</h1>
+    <p>{{ detail }}</p>
+    <a class="btn" href="{{ url_for('main.dashboard') if g.user else url_for('main.landing') }}">{{ icon('arrow-left') }} Back to {{ 'dashboard' if g.user else 'home' }}</a>
+  </div>
+</main>
+{% endblock %}

@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+{% block title %}GradeCast NG | Predict student performance before results are released{% endblock %}
+
+{% set R = metrics.results if metrics else None %}
+{% set chip_icons = {
+  'Hours_Studied': 'clock', 'Attendance': 'list-checks', 'Previous_Scores': 'trending-up',
+  'Tutoring_Sessions': 'users-round', 'Motivation_Level': 'target', 'Extracurricular_Activities': 'sprout',
+  'Sleep_Hours': 'moon', 'Physical_Activity': 'dumbbell', 'Learning_Disabilities': 'heart-handshake',
+  'Gender': 'user', 'Parental_Involvement': 'house', 'Parental_Education_Level': 'graduation-cap',
+  'Family_Income': 'scale', 'Internet_Access': 'wifi', 'Distance_from_Home': 'bus',
+  'Access_to_Resources': 'library', 'Teacher_Quality': 'badge-check', 'School_Type': 'school',
+  'Peer_Influence': 'users'} %}
+
+{% block body %}
+<div class="nav-wrap">
+  <nav class="nav" aria-label="Main">
+    {{ ui.brand(url_for('main.landing')) }}
+    <ul class="nav-links">
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#model">The model</a></li>
+      <li><a href="#results">Accuracy</a></li>
+      <li><a href="#faq">Questions</a></li>
+    </ul>
+    <div class="nav-actions">
+      {% if g.user %}
+      <a class="btn btn-sm" href="{{ url_for('main.dashboard') }}">Open dashboard</a>
+      {% else %}
+      <a class="btn btn-sm btn-ghost" href="{{ url_for('auth.login') }}">Sign in</a>
+      <a class="btn btn-sm" href="{{ url_for('auth.register') }}">Create account</a>
+      {% endif %}
+    </div>
+  </nav>
+</div>
+
+<main id="main">
+  <!-- Hero: the live class ladder is the product, so it leads -->
+  <section class="hero">
+    <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="dots" aria-hidden="true"></div>
+    <div class="container hero-grid">
+      <div>
+        <h1 class="split" data-split>See a student's class of result before the exams are written.</h1>
+        <p class="hero-lede reveal" style="--i:5">GradeCast NG reads 19 facts about how a student studies, lives and learns, then two machine learning models vote on the likely outcome. Schools across Nigeria can step in early instead of waiting for a poor result.</p>
+        <div class="hero-cta reveal" style="--i:7">
+          <a class="btn btn-lg btn-shimmer" href="{{ url_for('main.predict') if g.user else url_for('auth.register') }}">Predict a student's result {{ icon('arrow-right') }}</a>
+          <a class="btn btn-lg btn-ghost" href="#how">See how it works</a>
+        </div>
+        {% if R %}
+        <div class="hero-meta reveal" style="--i:9">
+          <div><strong data-count="{{ '%.1f'|format(R.ensemble.accuracy * 100) }}" data-suffix="%">{{ R.ensemble.accuracy|pct(1) }}</strong><span>exact class, held-out students</span></div>
+          <div><strong data-count="{{ '%.1f'|format(R.ensemble.within_one_class * 100) }}" data-suffix="%">{{ R.ensemble.within_one_class|pct(1) }}</strong><span>within one class</span></div>
+          <div><strong data-count="{{ metrics.dataset.rows_train_balanced }}">{{ '{:,}'.format(metrics.dataset.rows_train_balanced) }}</strong><span>balanced training records</span></div>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="demo beam reveal" style="--i:3" id="demo" data-endpoint="{{ url_for('main.api_preview') }}">
+        <div class="demo-head">
+          <h2>Try it on a typical student</h2>
+          <span class="live" id="demo-live">Live model</span>
+        </div>
+        {{ ui.ladder([0.0, 0.05, 0.75, 0.19, 0.01], top=2, id='demo-ladder') }}
+        <div class="demo-votes" aria-live="polite">
+          <span class="chip chip-outline">{{ icon('trees', 15) }} Random Forest: <b id="vote-rf">Lower Second</b></span>
+          <span class="chip chip-outline">{{ icon('trending-up', 15) }} Gradient Boosting: <b id="vote-gb">Lower Second</b></span>
+        </div>
+        <div class="demo-sliders">
+          <div class="slider">
+            <div class="slider-top"><label for="d-att">Class attendance</label><output for="d-att">80%</output></div>
+            <input type="range" id="d-att" name="Attendance" min="60" max="100" value="80" data-unit="%">
+          </div>
+          <div class="slider">
+            <div class="slider-top"><label for="d-hrs">Hours studied per week</label><output for="d-hrs">20 hrs</output></div>
+            <input type="range" id="d-hrs" name="Hours_Studied" min="1" max="44" value="20" data-unit=" hrs">
+          </div>
+          <div class="slider">
+            <div class="slider-top"><label for="d-prev">Previous score</label><output for="d-prev">75/100</output></div>
+            <input type="range" id="d-prev" name="Previous_Scores" min="50" max="100" value="75" data-unit="/100">
+          </div>
+        </div>
+        <p class="demo-note">{{ icon('info', 16) }} <span>Move a slider. The other 16 attributes stay at the values of a typical student. The full form lets you set all 19.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- The 19 inputs -->
+  <section class="factors" aria-label="The 19 attributes the model reads">
+    <p class="factors-label">The 19 attributes behind every prediction</p>
+    {% for half in [features[:10], features[10:]] %}
+    <div class="marquee{% if loop.index == 2 %} reverse{% endif %}">
+      {% for copy in range(2) %}
+      <div class="marquee-track"{% if copy %} aria-hidden="true"{% endif %}>
+        {% for f in half %}<span class="chip">{{ icon(chip_icons[f.name], 16) }} {{ f.label }}</span>{% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </section>
+
+  <!-- How it works: a true sequence -->
+  <section class="section" id="how">
+    <div class="container">
+      <div class="section-head reveal">
+        <h2>From a student's details to a plan, in four steps</h2>
+        <p>The whole run takes under a second. Nothing here replaces an examination. It tells you where to look first.</p>
+      </div>
+      <ol class="steps" style="list-style:none;margin:0;padding:0">
+        <li class="step reveal" style="--i:0"><div class="step-num" aria-hidden="true"></div><h3>Enter the details</h3><p>A student or academic officer fills in study habits, wellbeing, home background and school environment.</p></li>
+        <li class="step reveal" style="--i:1"><div class="step-num" aria-hidden="true"></div><h3>Check and prepare</h3><p>Each value is validated, categories are encoded as numbers and numeric values are scaled the same way as the training data.</p></li>
+        <li class="step reveal" style="--i:2"><div class="step-num" aria-hidden="true"></div><h3>Two models vote</h3><p>Random Forest and Gradient Boosting each estimate the chance of every class. A voting classifier combines them.</p></li>
+        <li class="step reveal" style="--i:3"><div class="step-num" aria-hidden="true"></div><h3>Read the result</h3><p>You get the predicted class, the probability of each class, what is driving it and which changes would help most.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- The model -->
+  <section class="section band" id="model">
+    <div class="band-glow" aria-hidden="true"></div>
+    <div class="container">
+      <div class="section-head reveal">
+        <h2>An ensemble, because one model on its own gets it wrong more often</h2>
+        <p>The system follows the Knowledge Discovery in Databases process: select, clean, transform, mine, evaluate.</p>
+      </div>
+      <div class="bento">
+        <article class="tile tile-wide spot reveal">
+          <h3>Two learners, one decision</h3>
+          <p>Random Forest averages hundreds of independent trees. Gradient Boosting builds trees in sequence, each fixing the last one's mistakes. Soft voting blends their probabilities.</p>
+          <div class="tile-art vote">
+            <div class="vote-models">
+              <div class="vote-node"><strong>Random Forest</strong><span>{{ metrics.config.rf.n_estimators if metrics else 250 }} trees, bagging</span></div>
+              <div class="vote-node"><strong>Gradient Boosting</strong><span>{{ metrics.config.gb.n_estimators if metrics else 300 }} stages, boosting</span></div>
+            </div>
+            <svg class="vote-wires" viewBox="0 0 90 120" aria-hidden="true">
+              <path d="M0 28 C45 28 45 60 90 60"/><path d="M0 92 C45 92 45 60 90 60"/>
+              <path class="pulse" d="M0 28 C45 28 45 60 90 60"/><path class="pulse b" d="M0 92 C45 92 45 60 90 60"/>
+            </svg>
+            <div class="vote-node final"><strong>Voting Classifier</strong><span>Final class of result</span></div>
+          </div>
+        </article>
+
+        <article class="tile spot reveal" style="--i:1">
+          <h3>Tested on students it never saw</h3>
+          <p>One in five original records is held back for testing. No synthetic record is ever used to score the model.</p>
+          {% if R %}
+          <div class="tile-art stat-row">
+            <div class="stat-big"><strong data-count="{{ '%.1f'|format(R.ensemble.f1_macro * 100) }}" data-suffix="%">{{ R.ensemble.f1_macro|pct(1) }}</strong><span>F1-score</span></div>
+            <div class="stat-big"><strong data-count="{{ metrics.dataset.rows_test }}">{{ '{:,}'.format(metrics.dataset.rows_test) }}</strong><span>test students</span></div>
+          </div>
+          {% endif %}
+        </article>
+
+        <article class="tile tile-half spot reveal">
+          <h3>Balanced with SMOTE</h3>
+          <p>Few students fail and few earn a First Class, so a model can ignore both. SMOTE creates synthetic neighbours for the rare classes until every class is the same size.</p>
+          {% if metrics %}
+          {% set before = metrics.class_distribution.train_before %}{% set after = metrics.class_distribution.train_after %}{% set top = after|max %}
+          <div class="tile-art">
+            <div class="bars" data-reveal-bars>
+              {% for i in range(5) %}<div><i style="--before: {{ (before[i] / top * 100)|round(1) }}%; --after: {{ (after[i] / top * 100)|round(1) }}%"></i>{{ CLASSES[i] }}</div>{% endfor %}
+            </div>
+            <div class="bars-legend"><span>Before: {{ '{:,}'.format(before|sum) }} records</span><span>After: {{ '{:,}'.format(after|sum) }} records</span></div>
+          </div>
+          {% endif %}
+        </article>
+
+        <article class="tile tile-half spot reveal" style="--i:1">
+          <h3>Set up for Nigerian institutions</h3>
+          <p>Results use the five classes familiar to universities and polytechnics. Every record can be tagged with a state and institution type, so the dashboard shows where at-risk students cluster.</p>
+          <div class="tile-art zone-list">
+            {% for z in ['North Central', 'North East', 'North West', 'South East', 'South South', 'South West'] %}<span class="chip">{{ icon('map-pin', 14) }} {{ z }}</span>{% endfor %}
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Honest results -->
+  {% if R %}
+  <section class="section" id="results">
+    <div class="container">
+      <div class="section-head reveal">
+        <h2>How the ensemble compares with a single classifier</h2>
+        <p>Every model below was trained on the same balanced data and scored on the same {{ '{:,}'.format(metrics.dataset.rows_test) }} held-out students.</p>
+      </div>
+      <div class="compare reveal">
+        <div class="compare-scroll">
+          <table>
+            <thead><tr><th scope="col">Model</th><th scope="col">Accuracy</th><th scope="col">Precision</th><th scope="col">Recall</th><th scope="col">F1-score</th></tr></thead>
+            <tbody>
+              {% for key, name in [('single_decision_tree', 'Single decision tree'), ('random_forest', 'Random Forest'), ('gradient_boosting', 'Gradient Boosting'), ('ensemble', 'Voting ensemble (used here)')] %}
+              <tr{% if key == 'ensemble' %} class="is-ours"{% endif %}>
+                <td>{{ name }}</td>
+                <td><span class="meter" aria-hidden="true"><i style="--w: {{ (R[key].accuracy * 100)|round(1) }}%"></i></span>{{ R[key].accuracy|pct(1) }}</td>
+                <td>{{ R[key].precision_macro|pct(1) }}</td><td>{{ R[key].recall_macro|pct(1) }}</td><td>{{ R[key].f1_macro|pct(1) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="fineprint reveal">Precision, recall and F1 are macro averages over the five classes. When the ensemble misses, it is almost always by one class: {{ R.ensemble.within_one_class|pct(1) }} of predictions land on the true class or the one next to it.{% if metrics.cross_validation %} Five-fold cross-validation accuracy: {{ metrics.cross_validation.accuracy_mean|pct(1) }}.{% endif %}</p>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- Roles -->
+  <section class="section" style="padding-top:0">
+    <div class="container">
+      <div class="section-head reveal"><h2>Three kinds of user, one system</h2></div>
+      <div class="roles">
+        <article class="role reveal">
+          <div class="role-icon">{{ icon('graduation-cap', 22) }}</div>
+          <h3>Students</h3><p>Check where you are heading and what to change while there is still time.</p>
+          <ul><li>{{ icon('check', 16) }} Predict your own class of result</li><li>{{ icon('check', 16) }} See which habits matter most</li><li>{{ icon('check', 16) }} Keep a private history</li></ul>
+        </article>
+        <article class="role reveal" style="--i:1">
+          <div class="role-icon">{{ icon('users', 22) }}</div>
+          <h3>Academic officers</h3><p>Screen a cohort early and direct tutoring, mentoring or counselling to the right students.</p>
+          <ul><li>{{ icon('check', 16) }} Run predictions for any student</li><li>{{ icon('check', 16) }} Track at-risk counts by zone</li><li>{{ icon('check', 16) }} Export records as CSV</li></ul>
+        </article>
+        <article class="role reveal" style="--i:2">
+          <div class="role-icon">{{ icon('settings', 22) }}</div>
+          <h3>System administrators</h3><p>Own the data and the model. Retrain whenever a better dataset arrives.</p>
+          <ul><li>{{ icon('check', 16) }} Upload and manage datasets</li><li>{{ icon('check', 16) }} Train the ensemble in one click</li><li>{{ icon('check', 16) }} Manage user roles</li></ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section" id="faq" style="padding-top:0">
+    <div class="container">
+      <div class="section-head reveal"><h2>Questions people ask first</h2></div>
+      <div class="faq reveal">
+        <details>
+          <summary>Where does the training data come from? {{ icon('plus') }}</summary>
+          <p>The model is trained on the public Student Performance Factors dataset from Kaggle, which holds {{ '{:,}'.format(metrics.dataset.cleaning.rows_raw) if metrics else '6,607' }} student records. It is not a record of Nigerian students. An administrator can upload an institution's own data in the same format and retrain.</p>
+        </details>
+        <details>
+          <summary>What do the five classes mean? {{ icon('plus') }}</summary>
+          <p>Exam scores in the dataset sit in a narrow range, so they are banded relative to the cohort{% if metrics %}: Fail up to {{ metrics.cutoffs[0]|int }}, Pass {{ metrics.cutoffs[0]|int + 1 }} to {{ metrics.cutoffs[1]|int }}, Lower Second {{ metrics.cutoffs[1]|int + 1 }} to {{ metrics.cutoffs[2]|int }}, Upper Second {{ metrics.cutoffs[2]|int + 1 }} to {{ metrics.cutoffs[3]|int }}, and First Class above {{ metrics.cutoffs[3]|int }}{% endif %}. Read a class as the student's standing among peers, not as a CGPA.</p>
+        </details>
+        <details>
+          <summary>Does a prediction decide a student's result? {{ icon('plus') }}</summary>
+          <p>No. It is an early signal built from patterns in past data. Use it to start a conversation and offer support. Admission, grading and progression decisions should never rest on it alone.</p>
+        </details>
+        <details>
+          <summary>How should I read the suggestions? {{ icon('plus') }}</summary>
+          <p>For each attribute a student can change, the system asks the model what would happen if only that attribute improved. The suggestions show what the model is sensitive to. They are not proof that the change will cause the result.</p>
+        </details>
+        <details>
+          <summary>Who can see the records I create? {{ icon('plus') }}</summary>
+          <p>Only you and the system administrator. Students and academic officers each see their own predictions.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="container" style="padding-bottom:24px">
+    <div class="cta reveal">
+      <div class="dots" aria-hidden="true"></div>
+      <h2>Find the students who need help while help still works.</h2>
+      <p>Create a free account and run your first prediction in about two minutes.</p>
+      <a class="btn btn-lg btn-light" href="{{ url_for('main.predict') if g.user else url_for('auth.register') }}">Predict a student's result {{ icon('arrow-right') }}</a>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    {{ ui.brand(url_for('main.landing')) }}
+    <span>A data-driven predictive system for student academic performance using an ensemble classifier. Yaba College of Technology, Department of Computer Technology.</span>
+  </div>
+</footer>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/landing.js') }}" defer></script>{% endblock %}

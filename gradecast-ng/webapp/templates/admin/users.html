@@ -1,0 +1,44 @@
+{% extends "app/layout.html" %}
+{% import "macros.html" as ui %}
+{% block title %}Users | {{ app_name }}{% endblock %}
+{% block heading %}Users{% endblock %}
+{% block subheading %}<p>{{ rows|length }} account{{ 's' if rows|length != 1 }}. Roles decide what each person can open.</p>{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="table-wrap" style="margin-top:-24px;border-top:0;border-radius:var(--r-lg) var(--r-lg) 0 0">
+    <table class="table">
+      <thead><tr><th scope="col">Name</th><th scope="col">Institution</th><th scope="col" class="right">Predictions</th><th scope="col">Joined</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for u in rows %}
+        <tr>
+          <td><b>{{ u.name }}</b>{% if u.id == g.user.id %} <span class="badge neutral">You</span>{% endif %}<span class="sub">{{ u.email }}</span></td>
+          <td>{{ u.institution or '' }}</td>
+          <td class="num right">{{ u.n }}</td>
+          <td class="num">{{ u.created_at|dt('date') }}</td>
+          <td>
+            {% if u.id == g.user.id %}Administrator{% else %}
+            <form class="inline-form" method="post" action="{{ url_for('admin.user_role', uid=u.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label class="sr-only" for="role-{{ u.id }}">Role for {{ u.name }}</label>
+              <select class="select" id="role-{{ u.id }}" name="role">
+                {% for value, label in [('student', 'Student'), ('officer', 'Academic officer'), ('admin', 'Administrator')] %}<option value="{{ value }}" {{ 'selected' if u.role == value }}>{{ label }}</option>{% endfor %}
+              </select>
+              <button class="btn btn-ghost btn-sm" type="submit">Save</button>
+            </form>
+            {% endif %}
+          </td>
+          <td class="right">
+            {% if u.id != g.user.id %}
+            <form method="post" action="{{ url_for('admin.user_delete', uid=u.id) }}" data-confirm="Delete {{ u.name }} and their {{ u.n }} prediction{{ 's' if u.n != 1 }}? This cannot be undone.">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-danger btn-sm" type="submit" aria-label="Delete {{ u.name }}">{{ icon('trash-2', 16) }}</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

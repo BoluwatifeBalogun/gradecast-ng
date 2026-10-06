@@ -2,6 +2,7 @@ services:
   - type: web
     name: gradecast-ng
     runtime: python
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn -w 1 --threads 4 --timeout 180 run:app
     envVars:

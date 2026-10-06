@@ -1,4 +1,5 @@
-<aside class="auth-side">
+{% set side_photo = photo('hero') %}
+<aside class="auth-side{% if side_photo %} has-photo{% endif %}"{% if side_photo %} style="--photo: url('{{ side_photo.src }}')"{% endif %}>
   <div class="band-glow" aria-hidden="true"></div>
   {{ ui.brand(url_for('main.landing')) }}
   <div style="position:relative">

@@ -10,6 +10,23 @@
       '<span class="w" aria-hidden="true" style="--i:' + i + '">' + w + '</span>').join(' ');
   });
 
+  /* A photo that fails to load (for example with no internet) is removed
+     so the layout closes up instead of showing a broken picture. */
+  const mosaic = document.getElementById('mosaic');
+  if (mosaic) {
+    const drop = (img) => {
+      const fig = img.closest('.shot');
+      if (fig) fig.remove();
+      const left = mosaic.querySelectorAll('.shot').length;
+      mosaic.dataset.photos = left;
+      if (!left) document.getElementById('campus').remove();
+    };
+    mosaic.querySelectorAll('img').forEach((img) => {
+      if (img.complete && img.naturalWidth === 0) drop(img);
+      else img.addEventListener('error', () => drop(img), { once: true });
+    });
+  }
+
   const demo = document.getElementById('demo');
   if (!demo) return;
   const rungs = {};

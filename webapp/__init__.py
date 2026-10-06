@@ -12,7 +12,7 @@ from markupsafe import Markup
 
 from ml import schema, service
 
-from . import db
+from . import db, photos
 
 ROOT = Path(__file__).resolve().parent.parent
 ICON_DIR = Path(__file__).resolve().parent / "static" / "icons"
@@ -120,7 +120,8 @@ def create_app(test_config=None):
     app.jinja_env.filters["pct"] = lambda v, d=0: f"{100 * float(v):.{d}f}%"
     app.jinja_env.filters["slug"] = lambda v: str(v).lower().replace(" ", "-")
     app.jinja_env.globals.update(
-        icon=icon, csrf_token=csrf_token, CLASSES=schema.CLASSES,
+        icon=icon, csrf_token=csrf_token, photo=photos.photo,
+        gallery=photos.gallery, CLASSES=schema.CLASSES,
         model_ready=service.ready, app_name="GradeCast NG")
 
     @app.errorhandler(400)

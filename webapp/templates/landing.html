@@ -27,7 +27,7 @@
       <a class="btn btn-sm" href="{{ url_for('main.dashboard') }}">Open dashboard</a>
       {% else %}
       <a class="btn btn-sm btn-ghost" href="{{ url_for('auth.login') }}">Sign in</a>
-      <a class="btn btn-sm" href="{{ url_for('auth.register') }}">Create account</a>
+      <a class="btn btn-sm btn-join" href="{{ url_for('auth.register') }}">Create account</a>
       {% endif %}
     </div>
   </nav>
@@ -83,6 +83,39 @@
       </div>
     </div>
   </section>
+
+  <!-- Photographs: the people the system is for -->
+  {% set shots = gallery() %}
+  {% if shots %}
+  <section class="campus" id="campus" aria-labelledby="campus-title">
+    <div class="container">
+      <div class="campus-head reveal">
+        <h2 id="campus-title">Behind every prediction is a student</h2>
+        <p>The point is simple: a level adviser should reach a struggling student in week five, not after the results go up on the notice board.</p>
+      </div>
+      <div class="mosaic reveal" data-photos="{{ shots|length }}" id="mosaic">
+        {% for s in shots %}
+        <figure class="shot">
+          <img src="{{ s.src }}" alt="{{ s.alt }}" {% if loop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %} decoding="async" width="1600" height="1000">
+          <figcaption>
+            <span>{{ s.caption }}</span>
+            {% if s.credit %}<small>Photo: {% if s.credit_url %}<a href="{{ s.credit_url }}" rel="noopener">{{ s.credit }}</a>{% else %}{{ s.credit }}{% endif %}</small>{% endif %}
+          </figcaption>
+        </figure>
+        {% endfor %}
+        {% if R %}
+        {% set cm = R.ensemble.confusion_matrix %}
+        {% set truly = cm[0]|sum + cm[1]|sum %}
+        {% set caught = cm[0][0] + cm[0][1] + cm[1][0] + cm[1][1] %}
+        <aside class="shot-card" aria-label="Early-warning result on held-out students">
+          <span class="shot-card-icon">{{ icon('shield-check', 20) }}</span>
+          <div><strong>{{ caught }} of {{ truly }}</strong><span>students who went on to Pass or Fail were flagged early in testing</span></div>
+        </aside>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
 
   <!-- The 19 inputs -->
   <section class="factors" aria-label="The 19 attributes the model reads">

@@ -43,6 +43,27 @@ account is given 48 sample records (real dataset rows under invented names,
 marked `SAMPLE`) so the dashboard is not empty. Remove them from
 Admin > Datasets, or start with `SEED_SAMPLE=0`.
 
+## Photographs on the front page
+
+The landing page has four photo slots. Put your pictures in
+`webapp/static/img/` with these names and they appear automatically:
+
+| File | Where it shows |
+|---|---|
+| `hero.jpg` | Large picture in the photo section, and the sign-in side panel |
+| `campus-1.jpg`, `campus-2.jpg`, `campus-3.jpg` | The three smaller pictures |
+
+`.jpeg`, `.png` and `.webp` also work. Landscape, about 1600 pixels wide, under
+500 KB each. The layout adapts to one, two, three or four pictures. Edit the
+alt text, captions and credits in `webapp/photos.py`.
+
+Out of the box only `hero` has a default: a free Unsplash photograph of
+graduands in Lagos by Blessfield John, loaded from the internet. Run
+`python tools/fetch_photos.py` once while online to save it locally so it
+shows without a connection. A picture that cannot load is removed from the
+page instead of showing as broken. Photographs from your own institution are
+the better choice. Only use pictures you have permission to use.
+
 ## How it maps to the report
 
 | Report | Where it lives |

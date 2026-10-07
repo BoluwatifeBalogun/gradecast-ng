@@ -70,7 +70,125 @@ def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def connect(path):
+# ---------------------------------------------------------------------------
+# Two back ends, one interface.
+#
+# With no DATABASE_URL the app uses a SQLite file (laptop, defence demo).
+# With DATABASE_URL set it uses PostgreSQL, so accounts and predictions
+# survive on hosts that wipe local files, such as Render's free plan.
+# The rest of the code writes SQLite-style SQL ("?" placeholders) and the
+# small wrapper below translates it for PostgreSQL.
+# ---------------------------------------------------------------------------
+_pg = {"url": None, "pool": None}
+
+
+def configure(app):
+    """Choose the back end. Call once, before init_db."""
+    url = app.config.get("DATABASE_URL") or None
+    if _pg["pool"] is not None and _pg["url"] != url:
+        _pg["pool"].close()
+        _pg["pool"] = None
+    _pg["url"] = url
+    if url and _pg["pool"] is None:
+        from psycopg_pool import ConnectionPool
+        _pg["pool"] = ConnectionPool(
+            url, min_size=1, max_size=4, timeout=20, open=True,
+            check=ConnectionPool.check_connection)
+
+
+def using_postgres():
+    return _pg["url"] is not None
+
+
+class _Row:
+    """A result row readable by column name or position, like sqlite3.Row."""
+    __slots__ = ("_keys", "_values")
+
+    def __init__(self, keys, values):
+        self._keys, self._values = keys, values
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._values[key]
+        try:
+            return self._values[self._keys.index(key)]
+        except ValueError:
+            raise KeyError(key)
+
+    def keys(self):
+        return list(self._keys)
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self):
+        return len(self._values)
+
+
+class _PgCursor:
+    def __init__(self, cur, lastrowid=None):
+        self._cur, self.lastrowid = cur, lastrowid
+        self.rowcount = cur.rowcount
+        self._keys = ([c.name for c in cur.description]
+                      if cur.description else [])
+
+    def fetchone(self):
+        row = self._cur.fetchone()
+        return None if row is None else _Row(self._keys, row)
+
+    def fetchall(self):
+        return [_Row(self._keys, r) for r in self._cur.fetchall()]
+
+    def __iter__(self):
+        return iter(self.fetchall())
+
+
+class _PgConnection:
+    def __init__(self, raw, pool=None):
+        self._raw, self._pool = raw, pool
+
+    def execute(self, sql, params=()):
+        text = sql.replace("%", "%%").replace("?", "%s")
+        is_insert = text.lstrip().upper().startswith("INSERT")
+        if is_insert and "RETURNING" not in text.upper():
+            text += " RETURNING id"
+        cur = self._raw.cursor()
+        cur.execute(text, tuple(params))
+        if is_insert:
+            count = cur.rowcount
+            new_id = cur.fetchone()[0]
+            out = _PgCursor(cur, lastrowid=new_id)
+            out.rowcount = count
+            return out
+        return _PgCursor(cur)
+
+    def executescript(self, script):
+        script = (script
+                  .replace("INTEGER PRIMARY KEY AUTOINCREMENT",
+                           "SERIAL PRIMARY KEY")
+                  .replace(" REAL", " DOUBLE PRECISION"))
+        cur = self._raw.cursor()
+        for statement in script.split(";"):
+            if statement.strip():
+                cur.execute(statement)
+        self._raw.commit()
+
+    def commit(self):
+        self._raw.commit()
+
+    def close(self):
+        if self._pool is not None:
+            self._raw.rollback()        # drop anything left uncommitted
+            self._pool.putconn(self._raw)
+        else:
+            self._raw.close()
+
+
+def connect(path=None):
+    """A stand-alone connection (start-up work and the training thread)."""
+    if using_postgres():
+        import psycopg
+        return _PgConnection(psycopg.connect(_pg["url"]))
     conn = sqlite3.connect(path, timeout=15)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -79,7 +197,11 @@ def connect(path):
 
 def get_db():
     if "db" not in g:
-        g.db = connect(current_app.config["DATABASE"])
+        if using_postgres():
+            pool = _pg["pool"]
+            g.db = _PgConnection(pool.getconn(), pool)
+        else:
+            g.db = connect(current_app.config["DATABASE"])
     return g.db
 
 
@@ -108,12 +230,14 @@ def save_prediction(conn, user_id, record, features, result, is_sample=0,
 
 
 def init_db(app):
-    """Create tables and first-run records."""
+    """Create tables and first-run records. Returns True on a brand-new
+    database (no users yet), which is when sample records are added."""
     from ml import pipeline
     conn = connect(app.config["DATABASE"])
     conn.executescript(SCHEMA)
 
-    if not conn.execute("SELECT 1 FROM users LIMIT 1").fetchone():
+    fresh = not conn.execute("SELECT 1 FROM users LIMIT 1").fetchone()
+    if fresh:
         for name, email, password, role, inst in [
             ("System Administrator", "admin@gradecast.ng", "Admin@2026",
              "admin", "GradeCast NG"),
@@ -142,6 +266,7 @@ def init_db(app):
             app.logger.warning("Built-in dataset not registered: %s", exc)
     conn.commit()
     conn.close()
+    return fresh
 
 
 def add_sample_cohort(app, count=48, seed=7):

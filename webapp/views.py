@@ -229,8 +229,9 @@ def _history_query():
     label = request.args.get("label", "")
     risk = request.args.get("risk", "")
     if q:
-        where += " AND (p.student_name LIKE ? OR p.student_ref LIKE ?)"
-        params += [f"%{q}%", f"%{q}%"]
+        where += (" AND (LOWER(p.student_name) LIKE ?"
+                  " OR LOWER(p.student_ref) LIKE ?)")
+        params += [f"%{q.lower()}%", f"%{q.lower()}%"]
     if label in schema.CLASSES:
         where += " AND p.label = ?"
         params.append(label)

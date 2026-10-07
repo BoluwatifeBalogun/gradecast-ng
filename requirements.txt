@@ -5,3 +5,4 @@ pandas==3.0.2
 numpy==2.4.4
 joblib==1.5.3
 gunicorn==26.2.0
+psycopg[binary,pool]==3.3.6

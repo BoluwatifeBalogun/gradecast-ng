@@ -170,7 +170,8 @@ model was trained on and the result page flags any value outside it.
 python -m unittest tests.test_system -v
 ```
 
-Thirty tests on a temporary database: the model matches Chapter Three (RF plus
+Thirty tests on a temporary database (`tests/test_postgres.py` adds four more
+that run only when `DATABASE_URL` points at an empty PostgreSQL database): the model matches Chapter Three (RF plus
 GB under a Voting Classifier, 19 inputs, five classes, 20,000+ balanced
 records, no test student in the training file), reported metrics reproduce,
 the web form gives the same class as the raw model, validation, roles,
@@ -178,18 +179,42 @@ privacy between users, CSRF, uploads and training.
 
 ## Hosting
 
-`Procfile` and `render.yaml` are included.
+`Procfile` and `render.yaml` are included (`render.yaml` selects Render's free
+plan).
 
 ```bash
 gunicorn -w 1 --threads 4 --timeout 180 run:app
 ```
 
 Keep it to **one worker** (threads are fine): training progress is tracked in
-memory. Set `SECRET_KEY` in the environment, and `COOKIE_SECURE=1` when serving over HTTPS. The SQLite file lives in
-`instance/`; on hosts with an ephemeral disk set `DATABASE_PATH` to a
-persistent location or records reset on each deploy. Serving peaked at about 385 MB of memory when
-measured, and retraining needs more. That is tight on a 512 MB instance, so
-retrain locally and deploy the saved model there, or use a 1 GB instance.
+memory. Set `SECRET_KEY` in the environment, and `COOKIE_SECURE=1` when
+serving over HTTPS.
+
+### Keeping accounts on a free host (PostgreSQL)
+
+Free hosts such as Render's free plan wipe local files whenever the service
+sleeps or restarts. With the default SQLite file that means every account and
+prediction created on the site disappears. To keep them:
+
+1. Create a free PostgreSQL database with any provider and copy its
+   connection string. It looks like
+   `postgresql://user:password@host/dbname?sslmode=require`.
+2. In the Render dashboard open the service, go to Environment, and add
+   `DATABASE_URL` with that string as the value.
+3. Save. Render redeploys, the app creates its tables and demo accounts in
+   the new database once, and from then on records survive restarts.
+
+With `DATABASE_URL` unset the app uses SQLite in `instance/`, which is right
+for a laptop. On a paid host with a persistent disk you can stay on SQLite
+and set `DATABASE_PATH` to a file on the disk.
+
+Still wiped on a free host, with or without PostgreSQL: uploaded dataset
+files and models retrained on the site. Retrain on your own computer with
+`python train.py`, commit `models/ensemble.joblib` and `models/metrics.json`,
+and push.
+
+Serving peaked at about 385 MB of memory when measured, and retraining needs
+more, so do not retrain on a small instance.
 
 ## Project layout
 

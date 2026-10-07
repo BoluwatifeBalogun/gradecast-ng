@@ -53,6 +53,7 @@ def create_app(test_config=None):
         SECRET_KEY=_secret_key(Path(app.instance_path)),
         DATABASE=os.environ.get(
             "DATABASE_PATH", str(Path(app.instance_path) / "gradecast.db")),
+        DATABASE_URL=os.environ.get("DATABASE_URL", ""),
         UPLOAD_DIR=str(ROOT / "data" / "uploads"),
         MAX_CONTENT_LENGTH=10 * 1024 * 1024,
         SESSION_COOKIE_HTTPONLY=True,
@@ -66,8 +67,8 @@ def create_app(test_config=None):
         app.config.update(test_config)
     Path(app.config["UPLOAD_DIR"]).mkdir(parents=True, exist_ok=True)
 
-    fresh = not Path(app.config["DATABASE"]).exists()
-    db.init_db(app)
+    db.configure(app)
+    fresh = db.init_db(app)
     app.teardown_appcontext(db.close_db)
     service.load()
     if fresh and app.config["SEED_SAMPLE"]:

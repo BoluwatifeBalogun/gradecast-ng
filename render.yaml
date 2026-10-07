@@ -10,3 +10,9 @@ services:
         value: 3.12.3
       - key: SECRET_KEY
         generateValue: true
+      - key: COOKIE_SECURE
+        value: "1"
+      # Paste your PostgreSQL connection string in the Render dashboard.
+      # Leave it empty to use a local SQLite file (wiped on the free plan).
+      - key: DATABASE_URL
+        sync: false

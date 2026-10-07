@@ -97,7 +97,8 @@ def dataset_activate(did):
     row = conn.execute("SELECT * FROM datasets WHERE id=?", (did,)).fetchone()
     if row is None:
         abort(404)
-    conn.execute("UPDATE datasets SET is_active = (id = ?)", (did,))
+    conn.execute("UPDATE datasets SET is_active = "
+                 "CASE WHEN id = ? THEN 1 ELSE 0 END", (did,))
     conn.commit()
     flash(f"{row['original_name']} is now the active dataset. Train the "
           f"model to use it.", "success")

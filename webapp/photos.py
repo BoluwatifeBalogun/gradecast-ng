@@ -26,7 +26,7 @@ SLOTS = {
         "alt": "Graduands in caps and gowns seated in an auditorium in Lagos",
         "caption": "",
         "credit": "Blessfield John on Unsplash",
-        "credit_url": "https://unsplash.com/@blessfield",
+        "credit_url": "",
     },
     "campus-1": {
         "remote": None,

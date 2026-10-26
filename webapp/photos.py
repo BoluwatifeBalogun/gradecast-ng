@@ -24,26 +24,26 @@ SLOTS = {
         "remote": ("https://images.unsplash.com/photo-1769905226600-"
                    "1d447fe7d020?auto=format&fit=crop&w=1600&q=70"),
         "alt": "Graduands in caps and gowns seated in an auditorium in Lagos",
-        "caption": "",
+        "caption": "Convocation day, Lagos",
         "credit": "Blessfield John on Unsplash",
-        "credit_url": "",
+        "credit_url": "https://unsplash.com/@blessfield",
     },
     "campus-1": {
         "remote": None,
         "alt": "Students in a lecture",
-        "caption": "",
+        "caption": "In the lecture hall",
         "credit": "", "credit_url": "",
     },
     "campus-2": {
         "remote": None,
         "alt": "Students studying together",
-        "caption": "",
+        "caption": "Study groups",
         "credit": "", "credit_url": "",
     },
     "campus-3": {
         "remote": None,
         "alt": "Students on campus",
-        "caption": "",
+        "caption": "Campus life",
         "credit": "", "credit_url": "",
     },
 }

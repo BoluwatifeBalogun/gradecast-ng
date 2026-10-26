@@ -32,6 +32,10 @@ def load(force=False):
             bundle = joblib.load(pipeline.MODEL_PATH)
             if bundle.get("features") != schema.FEATURE_NAMES:
                 raise ValueError("saved model does not match the schema")
+            # Prediction scores one student (or a few dozen what-if rows) at
+            # a time. Spreading that over threads costs more than it saves:
+            # measured 2.6 times faster on one thread.
+            bundle["model"].named_estimators_["rf"].n_jobs = 1
             _bundle = bundle
             _metrics = json.loads(pipeline.METRICS_PATH.read_text())
             _load_error = None
@@ -170,6 +174,20 @@ def _better_value(f, current, ref):
     return None
 
 
+def _sensible(driver) -> bool:
+    f = schema.BY_NAME[driver["name"]]
+    better = f.get("better")
+    if better not in ("high", "low"):
+        return True                       # no natural direction (sleep, ...)
+    if f["kind"] == "num":
+        above = driver["current"] > driver["value"]
+    else:
+        order = f["options"]
+        above = order.index(driver["current"]) > order.index(driver["value"])
+    student_is_better = above if better == "high" else not above
+    return (driver["effect"] > 0) == student_is_better
+
+
 def explain(features: dict) -> dict:
     """What-if analysis around one student.
 
@@ -216,9 +234,15 @@ def explain(features: dict) -> dict:
         else:
             item["gain"] = delta
             item["new_label"] = classes[int(np.argmax(proba[i]))]
+            item["new_index"] = int(np.argmax(proba[i]))
             item["advice"] = advice.for_feature(f["name"])
             levers.append(item)
 
+    # Keep a driver only when its direction makes sense: a student whose
+    # attendance is below typical cannot be "helped" by it. The rare
+    # opposite readings are small quirks of the trained model and would
+    # mislead a reader.
+    drivers = [d for d in drivers if _sensible(d)]
     drivers.sort(key=lambda d: abs(d["effect"]), reverse=True)
     standalone = {l["name"]: l for l in levers}
 
@@ -239,6 +263,7 @@ def explain(features: dict) -> dict:
         step = remaining.pop(names[best])
         step["gain"] = float(gains[best])
         step["alone_label"] = step.pop("new_label")
+        step["alone_index"] = step.pop("new_index")
         current[step["name"]] = step["value"]
         level += float(gains[best])
         chosen.append(step)

@@ -64,6 +64,7 @@ class Base(unittest.TestCase):
         return self.client("student@gradecast.ng", "Student@2026")
 
     def submit(self, c, features, name="Test Student", **record):
+        record.setdefault("institution_type", "Federal University")
         data = {"csrf_token": self.token(c), "student_name": name,
                 **record, **features}
         return c.post("/predict", data=data)
@@ -316,7 +317,7 @@ class WebTests(Base):
         r = c.get("/history?q=Filter+Weak+Zed&risk=On+track")
         self.assertIn("No predictions match", r.text)
         csv_text = c.get("/history/export.csv?q=Filter+Weak+Zed").text
-        rows = pd.read_csv(io.StringIO(csv_text))
+        rows = pd.read_csv(io.StringIO(csv_text.lstrip("\ufeff")))
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows.iloc[0]["Attendance"], 62)
 

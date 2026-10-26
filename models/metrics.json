@@ -1,7 +1,7 @@
 {
-  "version": "20261005-201555",
-  "trained_at": "2026-10-05T20:15:55+00:00",
-  "duration_seconds": 99.8,
+  "version": "20261022-173631",
+  "trained_at": "2026-10-22T17:36:31+00:00",
+  "duration_seconds": 85.1,
   "dataset": {
     "name": "StudentPerformanceFactors.csv",
     "cleaning": {
@@ -72,229 +72,61 @@
     "ensemble": {
       "accuracy": 0.7980332829046899,
       "within_one_class": 0.9977307110438729,
-      "precision_macro": 0.8221386589995712,
-      "recall_macro": 0.7727806521113658,
-      "f1_macro": 0.7937229863766233,
-      "precision_weighted": 0.8016154173251216,
+      "precision_macro": 0.81391642188246,
+      "recall_macro": 0.768234162017057,
+      "f1_macro": 0.787437714584972,
+      "precision_weighted": 0.7999959375539965,
       "recall_weighted": 0.7980332829046899,
-      "f1_weighted": 0.798113404260256,
+      "f1_weighted": 0.7976701891574647,
       "per_class": [
         {
           "label": "Fail",
-          "precision": 0.875,
-          "recall": 0.6666666666666666,
-          "f1": 0.7567567567567568,
+          "precision": 0.851063829787234,
+          "recall": 0.6349206349206349,
+          "f1": 0.7272727272727273,
           "support": 63
         },
         {
           "label": "Pass",
-          "precision": 0.7909090909090909,
-          "recall": 0.7665198237885462,
-          "f1": 0.7785234899328859,
-          "support": 227
-        },
-        {
-          "label": "Lower Second",
-          "precision": 0.7669491525423728,
-          "recall": 0.8418604651162791,
-          "f1": 0.802660753880266,
-          "support": 430
-        },
-        {
-          "label": "Upper Second",
-          "precision": 0.7809278350515464,
-          "recall": 0.787012987012987,
-          "f1": 0.7839586028460543,
-          "support": 385
-        },
-        {
-          "label": "First Class",
-          "precision": 0.8969072164948454,
-          "recall": 0.8018433179723502,
-          "f1": 0.8467153284671532,
-          "support": 217
-        }
-      ],
-      "confusion_matrix": [
-        [
-          42,
-          21,
-          0,
-          0,
-          0
-        ],
-        [
-          6,
-          174,
-          47,
-          0,
-          0
-        ],
-        [
-          0,
-          23,
-          362,
-          45,
-          0
-        ],
-        [
-          0,
-          0,
-          62,
-          303,
-          20
-        ],
-        [
-          0,
-          2,
-          1,
-          40,
-          174
-        ]
-      ]
-    },
-    "random_forest": {
-      "accuracy": 0.7413010590015129,
-      "within_one_class": 0.9969742813918305,
-      "precision_macro": 0.7588849164514105,
-      "recall_macro": 0.7066148529809378,
-      "f1_macro": 0.7264210948152979,
-      "precision_weighted": 0.7444279219771595,
-      "recall_weighted": 0.7413010590015129,
-      "f1_weighted": 0.7410013083630609,
-      "per_class": [
-        {
-          "label": "Fail",
-          "precision": 0.8048780487804879,
-          "recall": 0.5238095238095238,
-          "f1": 0.6346153846153846,
-          "support": 63
-        },
-        {
-          "label": "Pass",
-          "precision": 0.679324894514768,
-          "recall": 0.7092511013215859,
-          "f1": 0.6939655172413793,
-          "support": 227
-        },
-        {
-          "label": "Lower Second",
-          "precision": 0.7167755991285403,
-          "recall": 0.7651162790697674,
-          "f1": 0.7401574803149606,
-          "support": 430
-        },
-        {
-          "label": "Upper Second",
-          "precision": 0.7454068241469817,
-          "recall": 0.7376623376623377,
-          "f1": 0.741514360313316,
-          "support": 385
-        },
-        {
-          "label": "First Class",
-          "precision": 0.8480392156862745,
-          "recall": 0.7972350230414746,
-          "f1": 0.8218527315914489,
-          "support": 217
-        }
-      ],
-      "confusion_matrix": [
-        [
-          33,
-          30,
-          0,
-          0,
-          0
-        ],
-        [
-          8,
-          161,
-          58,
-          0,
-          0
-        ],
-        [
-          0,
-          44,
-          329,
-          57,
-          0
-        ],
-        [
-          0,
-          0,
-          70,
-          284,
-          31
-        ],
-        [
-          0,
-          2,
-          2,
-          40,
-          173
-        ]
-      ]
-    },
-    "gradient_boosting": {
-      "accuracy": 0.802571860816944,
-      "within_one_class": 0.9977307110438729,
-      "precision_macro": 0.8185903930241857,
-      "recall_macro": 0.7766612904441855,
-      "f1_macro": 0.7948606111706596,
-      "precision_weighted": 0.8051863931126302,
-      "recall_weighted": 0.802571860816944,
-      "f1_weighted": 0.8025643968835422,
-      "per_class": [
-        {
-          "label": "Fail",
-          "precision": 0.84,
-          "recall": 0.6666666666666666,
-          "f1": 0.7433628318584071,
-          "support": 63
-        },
-        {
-          "label": "Pass",
-          "precision": 0.7918552036199095,
+          "precision": 0.7847533632286996,
           "recall": 0.7709251101321586,
-          "f1": 0.78125,
+          "f1": 0.7777777777777778,
           "support": 227
         },
         {
           "label": "Lower Second",
-          "precision": 0.7784946236559139,
+          "precision": 0.7801724137931034,
           "recall": 0.8418604651162791,
-          "f1": 0.8089385474860336,
+          "f1": 0.8098434004474273,
           "support": 430
         },
         {
           "label": "Upper Second",
-          "precision": 0.7851662404092071,
-          "recall": 0.7974025974025974,
-          "f1": 0.7912371134020618,
+          "precision": 0.7829457364341085,
+          "recall": 0.787012987012987,
+          "f1": 0.7849740932642487,
           "support": 385
         },
         {
           "label": "First Class",
-          "precision": 0.8974358974358975,
+          "precision": 0.8706467661691543,
           "recall": 0.8064516129032258,
-          "f1": 0.8495145631067961,
+          "f1": 0.8373205741626795,
           "support": 217
         }
       ],
       "confusion_matrix": [
         [
-          42,
-          21,
+          40,
+          23,
           0,
           0,
           0
         ],
         [
-          8,
+          7,
           175,
-          44,
+          45,
           0,
           0
         ],
@@ -308,9 +140,9 @@
         [
           0,
           0,
-          58,
-          307,
-          20
+          56,
+          303,
+          26
         ],
         [
           0,
@@ -321,200 +153,368 @@
         ]
       ]
     },
-    "single_decision_tree": {
-      "accuracy": 0.5620272314674736,
-      "within_one_class": 0.9720121028744326,
-      "precision_macro": 0.5559499979868594,
-      "recall_macro": 0.5676917575981328,
-      "f1_macro": 0.5601225512514508,
-      "precision_weighted": 0.5637993296827405,
-      "recall_weighted": 0.5620272314674736,
-      "f1_weighted": 0.5613159366292673,
+    "random_forest": {
+      "accuracy": 0.7390317700453858,
+      "within_one_class": 0.9977307110438729,
+      "precision_macro": 0.7622288289415382,
+      "recall_macro": 0.7064499485857028,
+      "f1_macro": 0.7278162651737057,
+      "precision_weighted": 0.7421865589566659,
+      "recall_weighted": 0.7390317700453858,
+      "f1_weighted": 0.7385796464986251,
       "per_class": [
         {
           "label": "Fail",
-          "precision": 0.4864864864864865,
-          "recall": 0.5714285714285714,
-          "f1": 0.5255474452554745,
+          "precision": 0.8292682926829268,
+          "recall": 0.5396825396825397,
+          "f1": 0.6538461538461539,
           "support": 63
         },
         {
           "label": "Pass",
-          "precision": 0.5125,
-          "recall": 0.5418502202643172,
-          "f1": 0.5267665952890792,
+          "precision": 0.6946902654867256,
+          "recall": 0.6916299559471366,
+          "f1": 0.6931567328918322,
           "support": 227
         },
         {
           "label": "Lower Second",
-          "precision": 0.5562632696390658,
-          "recall": 0.6093023255813953,
-          "f1": 0.58157602663707,
+          "precision": 0.7085106382978723,
+          "recall": 0.7744186046511627,
+          "f1": 0.74,
           "support": 430
         },
         {
           "label": "Upper Second",
-          "precision": 0.5562310030395137,
-          "recall": 0.4753246753246753,
-          "f1": 0.5126050420168067,
+          "precision": 0.7380952380952381,
+          "recall": 0.7246753246753247,
+          "f1": 0.7313237221494102,
           "support": 385
         },
         {
           "label": "First Class",
-          "precision": 0.6682692307692307,
-          "recall": 0.6405529953917051,
-          "f1": 0.6541176470588236,
+          "precision": 0.8405797101449275,
+          "recall": 0.8018433179723502,
+          "f1": 0.8207547169811321,
           "support": 217
         }
       ],
       "confusion_matrix": [
         [
-          36,
-          22,
-          5,
+          34,
+          29,
+          0,
           0,
           0
         ],
         [
-          32,
-          123,
-          69,
-          1,
-          2
-        ],
-        [
-          5,
-          83,
-          262,
-          74,
-          6
+          7,
+          157,
+          63,
+          0,
+          0
         ],
         [
           0,
-          11,
-          130,
-          183,
-          61
+          38,
+          333,
+          59,
+          0
+        ],
+        [
+          0,
+          0,
+          73,
+          279,
+          33
+        ],
+        [
+          0,
+          2,
+          1,
+          40,
+          174
+        ]
+      ]
+    },
+    "gradient_boosting": {
+      "accuracy": 0.794251134644478,
+      "within_one_class": 0.9977307110438729,
+      "precision_macro": 0.8011235562497696,
+      "recall_macro": 0.7681339997642201,
+      "f1_macro": 0.782806692771632,
+      "precision_weighted": 0.7956280687428932,
+      "recall_weighted": 0.794251134644478,
+      "f1_weighted": 0.7940324009551859,
+      "per_class": [
+        {
+          "label": "Fail",
+          "precision": 0.7884615384615384,
+          "recall": 0.6507936507936508,
+          "f1": 0.7130434782608696,
+          "support": 63
+        },
+        {
+          "label": "Pass",
+          "precision": 0.7863636363636364,
+          "recall": 0.762114537444934,
+          "f1": 0.7740492170022372,
+          "support": 227
+        },
+        {
+          "label": "Lower Second",
+          "precision": 0.775377969762419,
+          "recall": 0.8348837209302326,
+          "f1": 0.8040313549832027,
+          "support": 430
+        },
+        {
+          "label": "Upper Second",
+          "precision": 0.7797927461139896,
+          "recall": 0.7818181818181819,
+          "f1": 0.7808041504539559,
+          "support": 385
+        },
+        {
+          "label": "First Class",
+          "precision": 0.8756218905472637,
+          "recall": 0.8110599078341014,
+          "f1": 0.8421052631578947,
+          "support": 217
+        }
+      ],
+      "confusion_matrix": [
+        [
+          41,
+          22,
+          0,
+          0,
+          0
+        ],
+        [
+          10,
+          173,
+          44,
+          0,
+          0
+        ],
+        [
+          0,
+          24,
+          359,
+          47,
+          0
+        ],
+        [
+          0,
+          0,
+          59,
+          301,
+          25
         ],
         [
           1,
           1,
+          1,
+          38,
+          176
+        ]
+      ]
+    },
+    "single_decision_tree": {
+      "accuracy": 0.5597579425113465,
+      "within_one_class": 0.9667170953101362,
+      "precision_macro": 0.5609295857327834,
+      "recall_macro": 0.5608869472359794,
+      "f1_macro": 0.5603808020763338,
+      "precision_weighted": 0.5614295674936794,
+      "recall_weighted": 0.5597579425113465,
+      "f1_weighted": 0.5600471057780115,
+      "per_class": [
+        {
+          "label": "Fail",
+          "precision": 0.515625,
+          "recall": 0.5238095238095238,
+          "f1": 0.5196850393700787,
+          "support": 63
+        },
+        {
+          "label": "Pass",
+          "precision": 0.5282258064516129,
+          "recall": 0.5770925110132159,
+          "f1": 0.5515789473684211,
+          "support": 227
+        },
+        {
+          "label": "Lower Second",
+          "precision": 0.5436241610738255,
+          "recall": 0.5651162790697675,
+          "f1": 0.5541619156214367,
+          "support": 430
+        },
+        {
+          "label": "Upper Second",
+          "precision": 0.5472222222222223,
+          "recall": 0.5116883116883116,
+          "f1": 0.5288590604026846,
+          "support": 385
+        },
+        {
+          "label": "First Class",
+          "precision": 0.6699507389162561,
+          "recall": 0.6267281105990783,
+          "f1": 0.6476190476190476,
+          "support": 217
+        }
+      ],
+      "confusion_matrix": [
+        [
+          33,
+          24,
+          6,
+          0,
+          0
+        ],
+        [
+          27,
+          131,
+          62,
           5,
-          71,
-          139
+          2
+        ],
+        [
+          4,
+          85,
+          243,
+          89,
+          9
+        ],
+        [
+          0,
+          6,
+          126,
+          197,
+          56
+        ],
+        [
+          0,
+          2,
+          10,
+          69,
+          136
         ]
       ]
     }
   },
   "cross_validation": {
     "folds": 5,
-    "accuracy_mean": 0.7950649407167586,
-    "accuracy_std": 0.005393448161472987,
-    "f1_macro_mean": 0.7833355374166169,
-    "f1_macro_std": 0.013513098753683986,
+    "accuracy_mean": 0.7921871868490038,
+    "accuracy_std": 0.010953640600458251,
+    "f1_macro_mean": 0.7803253494282603,
+    "f1_macro_std": 0.01508481229809622,
     "accuracy_per_fold": [
       0.7934947049924357,
-      0.802571860816944,
-      0.7865253595760787,
-      0.7986373959121877,
-      0.7940953822861468
+      0.8101361573373677,
+      0.7766843300529902,
+      0.7940953822861468,
+      0.7865253595760787
     ]
   },
   "feature_importance": [
     {
       "name": "Attendance",
       "label": "Class attendance",
-      "importance": 0.3743998251179774
+      "importance": 0.3731729851041074
     },
     {
       "name": "Hours_Studied",
       "label": "Hours studied per week",
-      "importance": 0.28431432264523393
+      "importance": 0.2845963574832708
     },
     {
       "name": "Previous_Scores",
       "label": "Previous score",
-      "importance": 0.06834570179136355
+      "importance": 0.0695092246316556
     },
     {
       "name": "Parental_Involvement",
       "label": "Parental involvement",
-      "importance": 0.04781187265628364
+      "importance": 0.04704854154026025
     },
     {
       "name": "Access_to_Resources",
       "label": "Access to learning resources",
-      "importance": 0.042891686611761536
+      "importance": 0.042478790433174214
     },
     {
       "name": "Tutoring_Sessions",
       "label": "Tutoring sessions per month",
-      "importance": 0.035099360556902326
+      "importance": 0.03488223975375071
     },
     {
       "name": "Parental_Education_Level",
       "label": "Parents' education",
-      "importance": 0.01839728829853021
+      "importance": 0.01851744491259523
     },
     {
       "name": "Peer_Influence",
       "label": "Peer influence",
-      "importance": 0.01699151901632928
+      "importance": 0.01733154605909741
     },
     {
       "name": "Family_Income",
       "label": "Family income",
-      "importance": 0.015701798309989707
+      "importance": 0.016017338776360416
     },
     {
       "name": "Motivation_Level",
       "label": "Motivation level",
-      "importance": 0.014622079856613393
+      "importance": 0.014850198404375148
     },
     {
       "name": "Physical_Activity",
       "label": "Physical activity per week",
-      "importance": 0.01311564645967158
+      "importance": 0.013158879871032649
     },
     {
       "name": "Distance_from_Home",
       "label": "Distance from home",
-      "importance": 0.012677909763361972
+      "importance": 0.013065205480058942
     },
     {
       "name": "Sleep_Hours",
       "label": "Sleep per night",
-      "importance": 0.010809313846638358
+      "importance": 0.010728125581638943
     },
     {
       "name": "Teacher_Quality",
       "label": "Teaching quality",
-      "importance": 0.010254310211236892
+      "importance": 0.010008405995502083
     },
     {
       "name": "Learning_Disabilities",
       "label": "Learning disability",
-      "importance": 0.009178837376961633
+      "importance": 0.009297351177421918
     },
     {
       "name": "Extracurricular_Activities",
       "label": "Extracurricular activities",
-      "importance": 0.008096840250567023
+      "importance": 0.008685412071597013
     },
     {
       "name": "School_Type",
       "label": "Previous school type",
-      "importance": 0.006929301036812226
+      "importance": 0.006536529368281298
     },
     {
       "name": "Internet_Access",
       "label": "Internet access",
-      "importance": 0.005862276930162604
+      "importance": 0.005714068563983466
     },
     {
       "name": "Gender",
       "label": "Gender",
-      "importance": 0.0045001092636027295
+      "importance": 0.004401354791836584
     }
   ],
   "config": {

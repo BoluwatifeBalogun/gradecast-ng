@@ -12,19 +12,29 @@
 </a>
 {%- endmacro %}
 
-{% macro ladder(proba, top=None, small=False, id=None) -%}
-<div class="ladder{% if small %} ladder-sm{% endif %}"{% if id %} id="{{ id }}"{% endif %} role="list" aria-label="Probability of each class of result">
+{% macro ladder(proba, top=None, small=False, id=None, scale='university') -%}
+{% set names = SCALES[scale].labels %}
+<div class="ladder{% if small %} ladder-sm{% endif %}"{% if id %} id="{{ id }}"{% endif %} role="list" aria-label="Chance of each class of result">
   {% for i in range(4, -1, -1) %}
   <div class="rung{% if top == i %} is-top{% endif %}" data-class="{{ i }}" role="listitem" style="--p: {{ '%.3f'|format(proba[i]) }}">
-    <span class="rung-name">{{ CLASSES[i] }}</span>
+    <span class="rung-name">{{ names[i] }}</span>
     <span class="rung-value">{{ proba[i]|pct }}</span>
   </div>
   {% endfor %}
 </div>
 {%- endmacro %}
 
-{% macro class_badge(label) -%}
-<span class="badge {{ label|slug }}">{{ label }}</span>
+{# A class of result as a coloured badge. `index` is the band (0 = Fail). #}
+{% macro class_badge(index, institution_type=None, scale=None) -%}
+<span class="badge band-{{ index }}">{{ grade(index, institution_type, scale) }}</span>
+{%- endmacro %}
+
+{# Links that switch the grading scale on pages that mix records. #}
+{% macro scale_switch(current, endpoint, extra={}) -%}
+<nav class="scale-switch" aria-label="Show classes as">
+  <span>Show classes as</span>
+  {% for key in SCALE_ORDER %}<a href="{{ url_for(endpoint, scale=key, **extra) }}"{% if key == current %} aria-current="true"{% endif %}>{{ SCALES[key].name }}</a>{% endfor %}
+</nav>
 {%- endmacro %}
 
 {% macro field_error(errors, name) -%}

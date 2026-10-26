@@ -60,10 +60,13 @@
           <h2>Try it on a typical student</h2>
           <span class="live" id="demo-live">Live model</span>
         </div>
-        {{ ui.ladder([0.0, 0.05, 0.75, 0.19, 0.01], top=2, id='demo-ladder') }}
+        <div class="seg demo-scale" role="radiogroup" aria-label="Grading scale" data-scales='{{ SCALES|tojson }}'>
+          {% for key in SCALE_ORDER %}<input type="radio" name="demo_scale" id="ds-{{ key }}" value="{{ key }}" {{ 'checked' if key == scale }}><label for="ds-{{ key }}">{{ SCALES[key].name }}</label>{% endfor %}
+        </div>
+        {{ ui.ladder([0.0, 0.05, 0.75, 0.19, 0.01], top=2, id='demo-ladder', scale=scale) }}
         <div class="demo-votes" aria-live="polite">
-          <span class="chip chip-outline">{{ icon('trees', 15) }} Random Forest: <b id="vote-rf">Lower Second</b></span>
-          <span class="chip chip-outline">{{ icon('trending-up', 15) }} Gradient Boosting: <b id="vote-gb">Lower Second</b></span>
+          <span class="chip chip-outline">{{ icon('trees', 15) }} Random Forest: <b id="vote-rf">{{ SCALES[scale].labels[2] }}</b></span>
+          <span class="chip chip-outline">{{ icon('trending-up', 15) }} Gradient Boosting: <b id="vote-gb">{{ SCALES[scale].labels[2] }}</b></span>
         </div>
         <div class="demo-sliders">
           <div class="slider">
@@ -271,8 +274,8 @@
           <p>The model is trained on the public Student Performance Factors dataset from Kaggle, which holds {{ '{:,}'.format(metrics.dataset.cleaning.rows_raw) if metrics else '6,607' }} student records. It is not a record of Nigerian students. An administrator can upload an institution's own data in the same format and retrain.</p>
         </details>
         <details>
-          <summary>What do the five classes mean? {{ icon('plus') }}</summary>
-          <p>Exam scores in the dataset sit in a narrow range, so they are banded relative to the cohort{% if metrics %}: Fail up to {{ metrics.cutoffs[0]|int }}, Pass {{ metrics.cutoffs[0]|int + 1 }} to {{ metrics.cutoffs[1]|int }}, Lower Second {{ metrics.cutoffs[1]|int + 1 }} to {{ metrics.cutoffs[2]|int }}, Upper Second {{ metrics.cutoffs[2]|int + 1 }} to {{ metrics.cutoffs[3]|int }}, and First Class above {{ metrics.cutoffs[3]|int }}{% endif %}. Read a class as the student's standing among peers, not as a CGPA.</p>
+          <summary>Why are the classes different for universities and polytechnics? {{ icon('plus') }}</summary>
+          <p>Each institution type uses its own grading scale. Universities award First Class, Second Class Upper, Second Class Lower and Third Class. Polytechnics award Distinction, Upper Credit, Lower Credit and Pass, and Colleges of Education award Distinction, Credit, Merit and Pass. The model predicts one of five levels, from the weakest to the strongest, and the institution type you choose decides what that level is called.</p>
         </details>
         <details>
           <summary>Does a prediction decide a student's result? {{ icon('plus') }}</summary>

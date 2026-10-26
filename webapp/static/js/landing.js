@@ -37,15 +37,34 @@
   const voteGb = document.getElementById('vote-gb');
   let timer = null, seq = 0;
 
+  /* Grading scale toggle: renames the rungs and the two votes */
+  const scaleGroup = demo.querySelector('.demo-scale');
+  const scales = scaleGroup ? JSON.parse(scaleGroup.dataset.scales) : null;
+  let last = null;
+  const scaleNames = () => {
+    const picked = scaleGroup && scaleGroup.querySelector('input:checked');
+    return picked ? scales[picked.value].labels : null;
+  };
+  function rename() {
+    const names = scaleNames();
+    if (!names) return;
+    Object.keys(rungs).forEach((i) => { rungs[i].querySelector('.rung-name').textContent = names[i]; });
+    if (last) {
+      voteRf.textContent = names[last.votes.random_forest];
+      voteGb.textContent = names[last.votes.gradient_boosting];
+    }
+  }
+  if (scaleGroup) scaleGroup.addEventListener('change', rename);
+
   function render(data) {
+    last = data;
     data.proba.forEach((p, i) => {
       const rung = rungs[i];
       rung.style.setProperty('--p', p.toFixed(3));
       rung.querySelector('.rung-value').textContent = Math.round(p * 100) + '%';
       rung.classList.toggle('is-top', i === data.index);
     });
-    voteRf.textContent = data.votes.random_forest;
-    voteGb.textContent = data.votes.gradient_boosting;
+    rename();
   }
 
   function refresh() {

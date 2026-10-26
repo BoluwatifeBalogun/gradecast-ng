@@ -2,6 +2,7 @@
 {% import "macros.html" as ui %}
 {% block title %}Dashboard | {{ app_name }}{% endblock %}
 {% block heading %}{{ 'All predictions' if g.user.role == 'admin' else 'Your dashboard' }}{% endblock %}
+{% set names = SCALES[scale].labels %}
 {% block subheading %}<p>{% if g.user.role == 'admin' %}Every prediction made on this system.{% elif g.user.role == 'student' %}Your predictions and how they have changed.{% else %}The students you have screened so far.{% endif %}</p>{% endblock %}
 {% block actions %}<a class="btn btn-shimmer" href="{{ url_for('main.predict') }}">{{ icon('sparkles') }} New prediction</a>{% endblock %}
 
@@ -25,11 +26,11 @@
   </div>
   <div class="card kpi spot reveal" style="--i:1">
     <div class="kpi-top"><span>At risk</span><span class="kpi-icon warn">{{ icon('triangle-alert') }}</span></div>
-    <strong data-count="{{ by_risk['At risk'] }}">{{ by_risk['At risk'] }}</strong><small>predicted Pass or Fail ({{ (by_risk['At risk'] / total)|pct }})</small>
+    <strong data-count="{{ by_risk['At risk'] }}">{{ by_risk['At risk'] }}</strong><small>predicted {{ names[1] }} or {{ names[0] }} ({{ (by_risk['At risk'] / total)|pct }})</small>
   </div>
   <div class="card kpi spot reveal" style="--i:2">
     <div class="kpi-top"><span>On track</span><span class="kpi-icon">{{ icon('trending-up') }}</span></div>
-    <strong data-count="{{ by_risk['On track'] }}">{{ by_risk['On track'] }}</strong><small>predicted Upper Second or First Class</small>
+    <strong data-count="{{ by_risk['On track'] }}">{{ by_risk['On track'] }}</strong><small>predicted {{ names[3] }} or {{ names[4] }}</small>
   </div>
   <div class="card kpi spot reveal" style="--i:3">
     <div class="kpi-top"><span>Model accuracy</span><span class="kpi-icon">{{ icon('gauge') }}</span></div>
@@ -40,8 +41,8 @@
 
 <div class="grid cols-2-1" style="margin-top:16px">
   <div class="card reveal">
-    <div class="card-head"><h2>Predicted class of result</h2><p>Number of students in each class</p></div>
-    <div class="chart-box"><canvas id="chart-classes" role="img" aria-label="Bar chart of students per predicted class: {% for c in CLASSES %}{{ c }} {{ by_class[loop.index0] }}{% if not loop.last %}, {% endif %}{% endfor %}"></canvas></div>
+    <div class="card-head"><h2>Predicted class of result</h2>{{ ui.scale_switch(scale, 'main.dashboard') }}</div>
+    <div class="chart-box"><canvas id="chart-classes" role="img" aria-label="Bar chart of students per predicted class: {% for c in names %}{{ c }} {{ by_class[loop.index0] }}{% if not loop.last %}, {% endif %}{% endfor %}"></canvas></div>
   </div>
   <div class="card reveal" style="--i:1">
     <div class="card-head"><h2>Risk level</h2></div>
@@ -74,16 +75,17 @@
   <div class="card-head"><h2>Latest predictions</h2><a href="{{ url_for('main.history') }}">View all</a></div>
   <div class="table-wrap">
     <table class="table">
-      <thead><tr><th scope="col">Student</th><th scope="col">Predicted class</th><th scope="col">Confidence</th><th scope="col">Risk</th><th scope="col">State</th><th scope="col">When</th></tr></thead>
+      <thead><tr><th scope="col">Student</th><th scope="col">Predicted class</th><th scope="col">Confidence</th><th scope="col">Risk</th><th scope="col">State</th><th scope="col">When</th><th scope="col"><span class="sr-only">Report</span></th></tr></thead>
       <tbody>
         {% for p in recent %}
         <tr>
           <td><a class="row-link" href="{{ url_for('main.prediction', pid=p.id) }}">{{ p.student_name }}</a><span class="sub">{{ p.student_ref or 'No reference' }}</span></td>
-          <td>{{ ui.class_badge(p.label) }}</td>
+          <td>{{ ui.class_badge(p.label_index, p.institution_type) }}</td>
           <td class="num">{{ p.confidence|pct }}</td>
           <td><span class="badge {{ p.risk|slug }}">{{ p.risk }}</span></td>
           <td>{{ p.state or '' }}</td>
           <td class="num">{{ p.created_at|dt('short') }}</td>
+          <td><div class="row-actions"><a class="icon-link" href="{{ url_for('main.prediction_report', pid=p.id) }}" aria-label="Download report for {{ p.student_name }}" title="Download report">{{ icon('file-down', 18) }}</a></div></td>
         </tr>
         {% endfor %}
       </tbody>
@@ -101,7 +103,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var colors = GC.classColors, grid = GC.grid;
   new Chart(document.getElementById('chart-classes'), {
     type: 'bar',
-    data: { labels: {{ CLASSES|tojson }}, datasets: [{ data: {{ by_class|tojson }}, backgroundColor: colors, borderRadius: 10, maxBarThickness: 64 }] },
+    data: { labels: {{ names|tojson }}, datasets: [{ data: {{ by_class|tojson }}, backgroundColor: colors, borderRadius: 10, maxBarThickness: 64 }] },
     options: { plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, grid: grid, border: { display: false } } } }
   });
   new Chart(document.getElementById('chart-risk'), {

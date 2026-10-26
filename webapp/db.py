@@ -2,6 +2,7 @@
 
 import json
 import random
+import atexit
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
@@ -35,7 +36,9 @@ CREATE TABLE IF NOT EXISTS predictions (
     risk             TEXT NOT NULL,
     model_version    TEXT,
     is_sample        INTEGER NOT NULL DEFAULT 0,
-    created_at       TEXT NOT NULL
+    created_at       TEXT NOT NULL,
+    explain_json     TEXT,
+    explain_version  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_predictions_user ON predictions(user_id);
 CREATE TABLE IF NOT EXISTS datasets (
@@ -94,6 +97,14 @@ def configure(app):
         _pg["pool"] = ConnectionPool(
             url, min_size=1, max_size=4, timeout=20, open=True,
             check=ConnectionPool.check_connection)
+        atexit.register(_close_pool)
+
+
+def _close_pool():
+    pool = _pg.get("pool")
+    if pool is not None:
+        pool.close()
+        _pg["pool"] = None
 
 
 def using_postgres():
@@ -229,12 +240,31 @@ def save_prediction(conn, user_id, record, features, result, is_sample=0,
     return cur.lastrowid
 
 
+def _columns(conn, table):
+    if using_postgres():
+        rows = conn.execute(
+            "SELECT column_name FROM information_schema.columns"
+            " WHERE table_name = ?", (table,)).fetchall()
+        return {r[0] for r in rows}
+    return {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def _migrate(conn):
+    """Bring a database created by an earlier version up to date."""
+    have = _columns(conn, "predictions")
+    for column in ("explain_json", "explain_version"):
+        if column not in have:
+            conn.execute(f"ALTER TABLE predictions ADD COLUMN {column} TEXT")
+    conn.commit()
+
+
 def init_db(app):
     """Create tables and first-run records. Returns True on a brand-new
     database (no users yet), which is when sample records are added."""
     from ml import pipeline
     conn = connect(app.config["DATABASE"])
     conn.executescript(SCHEMA)
+    _migrate(conn)
 
     fresh = not conn.execute("SELECT 1 FROM users LIMIT 1").fetchone()
     if fresh:

@@ -50,7 +50,8 @@ class PostgresTests(unittest.TestCase):
         self.assertEqual(r.status_code, 302)
         t = token(c.get("/predict").text)
         form = {"csrf_token": t, "student_name": "Adaeze OKAFOR",
-                "student_ref": "HND1/CS/26/777", "state": "Lagos"}
+                "student_ref": "HND1/CS/26/777", "state": "Lagos",
+                "institution_type": "Federal Polytechnic"}
         form.update({k: str(v) for k, v in schema.defaults().items()})
         r = c.post("/predict", data=form)
         self.assertEqual(r.status_code, 302)

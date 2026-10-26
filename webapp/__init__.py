@@ -12,7 +12,7 @@ from markupsafe import Markup
 
 from ml import schema, service
 
-from . import db, photos
+from . import db, grading, photos
 
 ROOT = Path(__file__).resolve().parent.parent
 ICON_DIR = Path(__file__).resolve().parent / "static" / "icons"
@@ -123,6 +123,8 @@ def create_app(test_config=None):
     app.jinja_env.globals.update(
         icon=icon, csrf_token=csrf_token, photo=photos.photo,
         gallery=photos.gallery, CLASSES=schema.CLASSES,
+        SCALES=grading.SCALES, SCALE_ORDER=grading.ORDER,
+        scale_for=grading.scale_for, grade=grading.label,
         model_ready=service.ready, app_name="GradeCast NG")
 
     @app.errorhandler(400)

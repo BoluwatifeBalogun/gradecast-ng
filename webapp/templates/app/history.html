@@ -4,15 +4,15 @@
 {% block heading %}History{% endblock %}
 {% block subheading %}<p>{{ total }} prediction{{ 's' if total != 1 }}{{ ' match these filters' if filtered else ' on record' }}.</p>{% endblock %}
 {% block actions %}
-<a class="btn btn-ghost" href="{{ url_for('main.history_export', **filters) }}">{{ icon('download') }} Export CSV</a>
+<a class="btn btn-ghost" href="{{ url_for('main.history_export', **filters) }}">{{ icon('download') }} Export all (CSV)</a>
 <a class="btn" href="{{ url_for('main.predict') }}">{{ icon('sparkles') }} New prediction</a>
 {% endblock %}
 {% block content %}
 <div class="card">
   <form class="filters" method="get" role="search">
     <div class="search">{{ icon('search') }}<label class="sr-only" for="q">Search by name or reference</label><input class="input" id="q" name="q" value="{{ filters.q }}" placeholder="Search by name or reference"></div>
-    <label class="sr-only" for="label">Class</label>
-    <select class="select" id="label" name="label"><option value="">Every class</option>{% for c in CLASSES|reverse %}<option {{ 'selected' if filters.label == c }}>{{ c }}</option>{% endfor %}</select>
+    <label class="sr-only" for="label">Class of result</label>
+    <select class="select" id="label" name="band"><option value="">Every class</option>{% for i in range(4, -1, -1) %}<option value="{{ i }}" {{ 'selected' if filters.band == i|string }}>{{ band_names[i] }}</option>{% endfor %}</select>
     <label class="sr-only" for="risk">Risk level</label>
     <select class="select" id="risk" name="risk"><option value="">Every risk level</option>{% for r in ['At risk', 'Watch', 'On track'] %}<option {{ 'selected' if filters.risk == r }}>{{ r }}</option>{% endfor %}</select>
     <button class="btn btn-sm" type="submit" style="min-height:44px">Apply filters</button>
@@ -22,18 +22,19 @@
   {% if rows %}
   <div class="table-wrap" style="margin-bottom:0">
     <table class="table">
-      <thead><tr><th scope="col">Student</th><th scope="col">Predicted class</th><th scope="col">Confidence</th><th scope="col">Risk</th><th scope="col">Institution</th><th scope="col">State</th>{% if g.user.role == 'admin' %}<th scope="col">Made by</th>{% endif %}<th scope="col">When</th></tr></thead>
+      <thead><tr><th scope="col">Student</th><th scope="col">Predicted class</th><th scope="col">Confidence</th><th scope="col">Risk</th><th scope="col">Institution</th><th scope="col">State</th>{% if g.user.role == 'admin' %}<th scope="col">Made by</th>{% endif %}<th scope="col">When</th><th scope="col"><span class="sr-only">Report</span></th></tr></thead>
       <tbody>
         {% for p in rows %}
         <tr>
           <td><a class="row-link" href="{{ url_for('main.prediction', pid=p.id) }}">{{ p.student_name }}</a><span class="sub">{{ p.student_ref or 'No reference' }}</span></td>
-          <td>{{ ui.class_badge(p.label) }}</td>
+          <td>{{ ui.class_badge(p.label_index, p.institution_type) }}</td>
           <td class="num">{{ p.confidence|pct }}</td>
           <td><span class="badge {{ p.risk|slug }}">{{ p.risk }}</span></td>
           <td>{{ p.institution_type or '' }}</td>
           <td>{{ p.state or '' }}</td>
           {% if g.user.role == 'admin' %}<td>{{ p.owner }}</td>{% endif %}
           <td class="num">{{ p.created_at|dt('short') }}</td>
+          <td><div class="row-actions"><a class="icon-link" href="{{ url_for('main.prediction_report', pid=p.id) }}" aria-label="Download report for {{ p.student_name }}" title="Download report (PDF)">{{ icon('file-down', 18) }}</a></div></td>
         </tr>
         {% endfor %}
       </tbody>

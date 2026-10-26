@@ -11,7 +11,7 @@ from flask import (Blueprint, Response, abort, flash, g, jsonify, redirect,
 
 from ml import advice, schema, service
 
-from . import db, nigeria
+from . import db, grading, nigeria, recommend
 from .auth import login_required
 
 bp = Blueprint("main", __name__)
@@ -25,6 +25,16 @@ def _scope():
     return "p.user_id = ?", [g.user["id"]]
 
 
+def _display_scale(institution_types=()):
+    """Grading scale for pages that mix records: the one asked for in the
+    address (?scale=), else the most common among the records shown."""
+    asked = grading.valid_scale(request.args.get("scale", ""))
+    if asked:
+        return asked
+    counts = Counter(grading.scale_for(t) for t in institution_types if t)
+    return counts.most_common(1)[0][0] if counts else grading.DEFAULT
+
+
 # ---------------------------------------------------------------------------
 # Public
 # ---------------------------------------------------------------------------
@@ -32,7 +42,8 @@ def _scope():
 def landing():
     return render_template("landing.html", metrics=service.metrics(),
                            features=schema.FEATURES,
-                           defaults=schema.defaults())
+                           defaults=schema.defaults(),
+                           scale=_display_scale())
 
 
 @bp.route("/api/preview", methods=["POST"])
@@ -53,7 +64,7 @@ def api_preview():
     return jsonify(label=result["label"], index=result["index"],
                    confidence=result["confidence"], proba=result["proba"],
                    agree=result["agree"],
-                   votes={k: v["label"] for k, v in result["votes"].items()})
+                   votes={k: v["index"] for k, v in result["votes"].items()})
 
 
 # ---------------------------------------------------------------------------
@@ -70,7 +81,8 @@ def dashboard():
         params).fetchall()
 
     total = len(rows)
-    by_class = Counter(r["label"] for r in rows)
+    by_class = Counter(int(r["label_index"]) for r in rows)
+    scale = _display_scale([r["institution_type"] for r in rows])
     by_risk = Counter(r["risk"] for r in rows)
 
     zones = {}
@@ -102,7 +114,8 @@ def dashboard():
 
     return render_template(
         "app/dashboard.html", total=total,
-        by_class=[by_class.get(c, 0) for c in schema.CLASSES],
+        by_class=[by_class.get(i, 0) for i in range(len(schema.CLASSES))],
+        scale=scale,
         by_risk={k: by_risk.get(k, 0)
                  for k in ("At risk", "Watch", "On track")},
         zone_rows=zone_rows,
@@ -127,8 +140,10 @@ def _record_from_form(form):
         errors["student_name"] = "Enter the student's name."
     if record["state"] and record["state"] not in nigeria.STATE_ZONE:
         errors["state"] = "Choose a state from the list."
-    if (record["institution_type"]
-            and record["institution_type"] not in nigeria.INSTITUTION_TYPES):
+    if not record["institution_type"]:
+        errors["institution_type"] = ("Choose the institution type. It decides "
+                                      "which classes of result are shown.")
+    elif record["institution_type"] not in nigeria.INSTITUTION_TYPES:
         errors["institution_type"] = "Choose an institution type from the list."
     record["zone"] = nigeria.STATE_ZONE.get(record["state"])
     return record, errors
@@ -142,6 +157,31 @@ def predict():
               if g.user["role"] == "student" else "",
               "student_ref": "", "institution_type": "", "state": ""}
     errors = {}
+    source = None
+    conn = db.get_db()
+    where, params = _scope()
+
+    # "Edit and predict again": start from an earlier prediction.
+    from_id = request.args.get("from", type=int)
+    if request.method == "GET" and from_id:
+        source = conn.execute(
+            f"SELECT p.* FROM predictions p WHERE p.id = ? AND {where}",
+            [from_id] + params).fetchone()
+        if source is None:
+            abort(404)
+        record = {k: source[k] or "" for k in
+                  ("student_name", "student_ref", "institution_type", "state")}
+        values.update(json.loads(source["inputs_json"]))
+    elif request.method == "GET":
+        # Most people screen students from one institution: reuse the last
+        # institution type and state.
+        last = conn.execute(
+            "SELECT institution_type, state FROM predictions"
+            " WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+            (g.user["id"],)).fetchone()
+        if last is not None:
+            record["institution_type"] = last["institution_type"] or ""
+            record["state"] = last["state"] or ""
 
     if request.method == "POST":
         if not service.ready():
@@ -153,9 +193,12 @@ def predict():
         values.update({k: request.form.get(k, v) for k, v in values.items()})
         if not errors:
             result = service.predict(clean)
-            conn = db.get_db()
             pid = db.save_prediction(conn, g.user["id"], record, clean,
                                      result)
+            try:
+                recommend.save(conn, pid, service.explain(clean))
+            except Exception:  # the result page will try again
+                pass
             conn.commit()
             return redirect(url_for("main.prediction", pid=pid))
 
@@ -170,8 +213,9 @@ def predict():
     return render_template(
         "app/predict.html", groups=schema.GROUPS, features=schema.FEATURES,
         values=values, record=record, errors=errors,
-        states=nigeria.STATES, institution_types=nigeria.INSTITUTION_TYPES,
-        first_error_step=first_error_step,
+        states=nigeria.STATES, institution_groups=grading.GROUPS,
+        institution_scales=grading.INSTITUTION_SCALE, scales=grading.SCALES,
+        first_error_step=first_error_step, source=source,
         ranges=service.training_ranges()), (400 if errors else 200)
 
 
@@ -192,14 +236,23 @@ def prediction(pid):
     row = _get_prediction(pid)
     inputs = json.loads(row["inputs_json"])
     votes = json.loads(row["votes_json"])
-    explanation = None
-    if service.ready():
-        try:
-            explanation = service.explain(inputs)
-        except Exception:  # an old record that no longer fits the schema
-            explanation = None
+    conn = db.get_db()
+    explanation = recommend.for_row(conn, row)
+    # The same student's other predictions in this account, so a follow-up
+    # shows how the outlook has moved (Section 1.6: performance trends).
+    if row["student_ref"]:
+        match, value = "p.student_ref = ?", row["student_ref"]
+    else:
+        match, value = ("LOWER(p.student_name) = ? AND p.student_ref IS NULL",
+                        row["student_name"].lower())
+    timeline = conn.execute(
+        f"SELECT p.id, p.label_index, p.institution_type, p.risk, p.created_at,"
+        f" p.confidence FROM predictions p WHERE p.user_id = ? AND {match}"
+        f" ORDER BY p.created_at, p.id", (row["user_id"], value)).fetchall()
     return render_template(
         "app/result.html", p=row, inputs=inputs,
+        timeline=timeline if len(timeline) > 1 else [],
+        scale=grading.scale_for(row["institution_type"]),
         proba=json.loads(row["proba_json"]), votes=votes["votes"],
         agree=votes["agree"], explanation=explanation,
         features=schema.FEATURES, groups=schema.GROUPS,
@@ -220,25 +273,40 @@ def prediction_delete(pid):
     return redirect(url_for("main.history"))
 
 
+@bp.route("/predictions/<int:pid>/report.pdf")
+@login_required
+def prediction_report(pid):
+    from . import report
+    row = _get_prediction(pid)
+    explanation = recommend.for_row(db.get_db(), row)
+    pdf = report.build(row, explanation, prepared_for=g.user["name"],
+                       metrics=service.metrics())
+    return Response(pdf, mimetype="application/pdf", headers={
+        "Content-Disposition":
+            f"attachment; filename={report.filename(row)}"})
+
+
 # ---------------------------------------------------------------------------
 # History
 # ---------------------------------------------------------------------------
 def _history_query():
     where, params = _scope()
     q = request.args.get("q", "").strip()
-    label = request.args.get("label", "")
+    band = request.args.get("band", "")
     risk = request.args.get("risk", "")
     if q:
         where += (" AND (LOWER(p.student_name) LIKE ?"
                   " OR LOWER(p.student_ref) LIKE ?)")
         params += [f"%{q.lower()}%", f"%{q.lower()}%"]
-    if label in schema.CLASSES:
-        where += " AND p.label = ?"
-        params.append(label)
+    if band.isdigit() and int(band) < len(schema.CLASSES):
+        where += " AND p.label_index = ?"
+        params.append(int(band))
+    else:
+        band = ""
     if risk in ("At risk", "Watch", "On track"):
         where += " AND p.risk = ?"
         params.append(risk)
-    return where, params, {"q": q, "label": label, "risk": risk}
+    return where, params, {"q": q, "band": band, "risk": risk}
 
 
 @bp.route("/history")
@@ -258,28 +326,49 @@ def history():
         params + [PAGE_SIZE, (page - 1) * PAGE_SIZE]).fetchall()
     return render_template("app/history.html", rows=rows, total=total,
                            page=page, pages=pages, filters=filters,
-                           filtered=any(filters.values()))
+                           filtered=any(filters.values()),
+                           band_names=[grading.any_scale_label(i) for i in
+                                       range(len(schema.CLASSES))])
+
+
+def _cell(value):
+    """Spreadsheet-safe text. A cell typed as =, +, - or @ would run as a
+    formula when the CSV is opened in Excel; a leading apostrophe makes the
+    spreadsheet show it as plain text."""
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@", "\t",
+                                                "\r"):
+        return "'" + value
+    return value
 
 
 @bp.route("/history/export.csv")
 @login_required
 def history_export():
     where, params, _ = _history_query()
-    rows = db.get_db().execute(
+    conn = db.get_db()
+    rows = conn.execute(
         f"SELECT p.* FROM predictions p WHERE {where} "
         f"ORDER BY p.created_at DESC", params).fetchall()
     out = io.StringIO()
+    out.write("\ufeff")  # lets Excel read names such as Adébáyọ̀ correctly
     writer = csv.writer(out)
     writer.writerow(["Date (UTC)", "Student", "Reference", "Institution type",
-                     "State", "Zone", "Predicted class", "Confidence",
-                     "Risk level"] + schema.FEATURE_NAMES)
+                     "Grading scale", "State", "Zone", "Predicted class",
+                     "Confidence", "Risk level", "Recommendations"]
+                    + schema.FEATURE_NAMES)
     for r in rows:
         inputs = json.loads(r["inputs_json"])
-        writer.writerow(
+        scale = grading.scale_for(r["institution_type"])
+        explanation = recommend.for_row(conn, r, commit=False)
+        writer.writerow([_cell(v) for v in
             [r["created_at"], r["student_name"], r["student_ref"] or "",
-             r["institution_type"] or "", r["state"] or "", r["zone"] or "",
-             r["label"], f"{r['confidence']:.3f}", r["risk"]]
-            + [inputs.get(n, "") for n in schema.FEATURE_NAMES])
+             r["institution_type"] or "", grading.SCALES[scale]["name"],
+             r["state"] or "", r["zone"] or "",
+             grading.label(r["label_index"], scale_key=scale),
+             f"{r['confidence']:.3f}", r["risk"],
+             recommend.as_text(explanation, scale)]
+            + [inputs.get(n, "") for n in schema.FEATURE_NAMES]])
+    conn.commit()  # keep any recommendations worked out for older rows
     return Response(
         out.getvalue(), mimetype="text/csv",
         headers={"Content-Disposition":
@@ -292,5 +381,10 @@ def history_export():
 @bp.route("/insights")
 @login_required
 def insights():
+    where, params = _scope()
+    types = [r[0] for r in db.get_db().execute(
+        f"SELECT p.institution_type FROM predictions p WHERE {where}",
+        params).fetchall()]
     return render_template("app/insights.html", m=service.metrics(),
-                           load_error=service.load_error())
+                           load_error=service.load_error(),
+                           scale=_display_scale(types))

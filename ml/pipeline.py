@@ -36,6 +36,7 @@ from sklearn.ensemble import (GradientBoostingClassifier,
 from sklearn.metrics import (accuracy_score, confusion_matrix,
                              precision_recall_fscore_support)
 from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.neighbors import NearestNeighbors
 from sklearn.tree import DecisionTreeClassifier
 
 from . import schema
@@ -234,9 +235,15 @@ def balance(X, y, cfg=CONFIG):
                               / len(schema.CLASSES)))
     per_class = int(math.ceil(per_class / 100.0) * 100)
     k = max(1, min(cfg["smote_k_neighbors"], int(counts.min()) - 1))
+    # The default neighbour search runs through the maths library, whose
+    # thread count changes the order of near-ties and so the synthetic
+    # students: results then differ from one computer to another. A KD-tree
+    # search gives the same students everywhere, so anyone who runs
+    # train.py gets the published figures.
+    neighbours = NearestNeighbors(n_neighbors=k + 1, algorithm="kd_tree")
     smote = SMOTE(sampling_strategy={i: per_class
                                      for i in range(len(schema.CLASSES))},
-                  k_neighbors=k, random_state=cfg["random_state"])
+                  k_neighbors=neighbours, random_state=cfg["random_state"])
     return smote.fit_resample(X, y)
 
 

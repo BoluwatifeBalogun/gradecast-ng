@@ -1,15 +1,19 @@
 {% extends "app/layout.html" %}
 {% import "macros.html" as ui %}
-{% block title %}New prediction | {{ app_name }}{% endblock %}
-{% block heading %}New prediction{% endblock %}
-{% block subheading %}<p>Five short steps. Every field starts at the value of a typical student, so change only what differs.</p>{% endblock %}
+{% block title %}{{ 'Edit and predict again' if source else 'New prediction' }} | {{ app_name }}{% endblock %}
+{% block heading %}{{ 'Edit and predict again' if source else 'New prediction' }}{% endblock %}
+{% block subheading %}<p>Fill in the student's details first. Everything else starts at the values of a typical student, so change only what you know is different, then press <b>Predict now</b> on any step.</p>{% endblock %}
 
 {% macro feature_field(f) %}
 <div class="field{{ ' has-error' if errors.get(f.name) }}">
   {% if f.kind == 'num' %}
   <div class="slider">
-    <div class="slider-top"><label for="f-{{ f.name }}">{{ f.label }}</label><output for="f-{{ f.name }}">{{ values[f.name] }}{{ f.unit and (' ' ~ f.unit if f.unit == 'hrs' else f.unit) }}</output></div>
-    <input type="range" id="f-{{ f.name }}" name="{{ f.name }}" min="{{ f.min }}" max="{{ f.max }}" step="{{ f.step }}" value="{{ values[f.name] }}" data-unit="{{ f.unit and (' ' ~ f.unit if f.unit == 'hrs' else f.unit) }}" aria-describedby="hint-{{ f.name }}">
+    <div class="slider-top">
+      <label for="n-{{ f.name }}">{{ f.label }}</label>
+      <span class="num-box"><input class="num-input" type="number" id="n-{{ f.name }}" data-for="f-{{ f.name }}" min="{{ f.min }}" max="{{ f.max }}" step="{{ f.step }}" value="{{ values[f.name] }}" inputmode="numeric" aria-describedby="hint-{{ f.name }}">{% if f.unit %}<span class="num-unit">{{ f.unit }}</span>{% endif %}</span>
+    </div>
+    <input type="range" id="f-{{ f.name }}" name="{{ f.name }}" min="{{ f.min }}" max="{{ f.max }}" step="{{ f.step }}" value="{{ values[f.name] }}" aria-label="{{ f.label }} slider" tabindex="-1">
+    <div class="range-ends" aria-hidden="true"><span>{{ f.min }}</span><span>{{ f.max }}</span></div>
   </div>
   {% else %}
   <span class="label" id="lab-{{ f.name }}">{{ f.label }}</span>
@@ -25,8 +29,9 @@
 {% endmacro %}
 
 {% block content %}
-<form class="card wizard" method="post" id="wizard" novalidate data-start="{{ first_error_step }}">
+<form class="card wizard" method="post" action="{{ url_for('main.predict') }}" id="wizard" novalidate data-start="{{ first_error_step }}"{% if source or errors %} data-open="1"{% endif %}>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if source %}<div class="notice">{{ icon('pencil') }}<span>Starting from the prediction for <b>{{ source.student_name }}</b> made {{ source.created_at|dt }}. Predicting again saves a new record; the earlier one stays in History.</span></div>{% endif %}
   {% if errors %}<div class="form-error" role="alert" style="margin-bottom:18px">{{ icon('circle-alert') }}<span>{{ errors|length }} field{{ 's' if errors|length != 1 }} need{{ 's' if errors|length == 1 }} attention before the prediction can run.</span></div>{% endif %}
 
   <div class="progress" role="tablist" aria-label="Steps">
@@ -49,11 +54,12 @@
         <input class="input" id="student_ref" name="student_ref" value="{{ record.student_ref or '' }}" maxlength="40" placeholder="For example, F/HD/24/3211008" autocomplete="off">
       </div>
       <div class="field{{ ' has-error' if errors.institution_type }}">
-        <label for="institution_type">Institution type</label>
-        <select class="select" id="institution_type" name="institution_type">
-          <option value="">Not specified</option>
-          {% for t in institution_types %}<option {{ 'selected' if record.institution_type == t }}>{{ t }}</option>{% endfor %}
+        <label for="institution_type">Institution type <span class="req" aria-hidden="true">*</span></label>
+        <select class="select" id="institution_type" name="institution_type" required aria-describedby="scale-preview{% if errors.institution_type %} err-institution_type{% endif %}">
+          <option value="">Choose the type of institution</option>
+          {% for group, types in institution_groups %}<optgroup label="{{ group }}">{% for t in types %}<option {{ 'selected' if record.institution_type == t }}>{{ t }}</option>{% endfor %}</optgroup>{% endfor %}
         </select>
+        <span class="scale-preview" id="scale-preview" data-scales='{{ scales|tojson }}' data-map='{{ institution_scales|tojson }}'>{% if record.institution_type %}{% set sk = scale_for(record.institution_type) %}Results will use {{ SCALES[sk].name|lower }} classes: {{ SCALES[sk].labels|reverse|join(', ') }}.{% else %}This decides the classes shown, for example First Class for universities or Distinction for polytechnics.{% endif %}</span>
         {{ ui.field_error(errors, 'institution_type') }}
       </div>
       <div class="field{{ ' has-error' if errors.state }}">
@@ -66,7 +72,7 @@
         {{ ui.field_error(errors, 'state') }}
       </div>
     </div>
-    <div class="wizard-nav"><a class="btn btn-ghost" href="{{ url_for('main.dashboard') }}">Cancel</a><button class="btn" type="button" data-next>Continue {{ icon('arrow-right') }}</button></div>
+    <div class="wizard-nav"><a class="btn btn-ghost" href="{{ url_for('main.dashboard') }}">Cancel</a><span class="nav-right"><button class="btn btn-ghost" type="submit" data-loading><span class="spinner" aria-hidden="true"></span>Predict now</button><button class="btn" type="button" data-next>Continue {{ icon('arrow-right') }}</button></span></div>
   </section>
 
   {% for key, title, blurb in groups %}
@@ -78,11 +84,14 @@
     </div>
     <div class="wizard-nav">
       <button class="btn btn-ghost" type="button" data-back>{{ icon('arrow-left') }} Back</button>
+      <span class="nav-right">
       {% if loop.last %}
-      <button class="btn btn-shimmer" type="submit" data-loading><span class="spinner" aria-hidden="true"></span>{{ icon('sparkles') }} Predict class of result</button>
+      <button class="btn btn-shimmer" type="submit" data-loading><span class="spinner" aria-hidden="true"></span>{{ icon('sparkles') }} Predict now</button>
       {% else %}
+      <button class="btn btn-ghost" type="submit" data-loading><span class="spinner" aria-hidden="true"></span>Predict now</button>
       <button class="btn" type="button" data-next>Continue {{ icon('arrow-right') }}</button>
       {% endif %}
+      </span>
     </div>
   </section>
   {% endfor %}

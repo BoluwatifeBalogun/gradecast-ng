@@ -5,10 +5,27 @@ Academic Performance Using an Ensemble Classifier"** (Alli Sofiat Abidemi and
 Adeboye Samuel, HND Computer Science, Yaba College of Technology).
 
 A Flask web application that predicts a student's likely class of result
-(First Class, Upper Second, Lower Second, Pass or Fail) from 19 academic,
+from 19 academic,
 behavioural and socio-economic attributes. A Random Forest and a Gradient
 Boosting classifier are combined by a Voting Classifier, trained on the Kaggle
 "Student Performance Factors" dataset balanced with SMOTE.
+
+Classes are named the way the student's institution names them:
+
+| Level | University | Polytechnic (ND, HND) | College of Education (NCE) |
+|---|---|---|---|
+| 5 | First Class | Distinction | Distinction |
+| 4 | Second Class Upper | Upper Credit | Credit |
+| 3 | Second Class Lower | Lower Credit | Merit |
+| 2 | Third Class | Pass | Pass |
+| 1 | Fail | Fail | Fail |
+
+The model predicts the level; the institution type chosen on the form decides
+the name. Edit the names in `webapp/grading.py`.
+
+Each prediction comes with numbered recommendations, and can be downloaded on
+its own as a PDF report (from the result page, or the icon on each row of
+History). The CSV export of all predictions includes the recommendations too.
 
 ## Run it
 
@@ -102,30 +119,33 @@ as 0, 1, 2 in the order listed in `ml/schema.py`, and synthetic rows carry
 decimals because SMOTE interpolates between real students.
 
 Used as an early-warning screen on the same 1,322 held-out students, the
-"At risk" flag (predicted Fail or Pass) caught 243 of the 290 students who
-really ended in Fail or Pass (84%), including all 63 who failed, and 91% of
-flagged students were truly in those classes. The 47 it missed were all
-predicted Lower Second.
+"At risk" flag (predicted at the two lowest levels) caught 245 of the 290 students who
+really ended at those levels (84%), including 63 of the 63 who failed, and
+91% of flagged students were truly at those levels. The 45 it missed were
+all predicted at the middle level (Second Class Lower or Lower Credit).
 
 ### Results (held-out test set)
 
 | Model | Accuracy | Precision | Recall | F1 |
 |---|---|---|---|---|
-| Single decision tree | 56.2% | 55.6% | 56.8% | 56.0% |
-| Random Forest | 74.1% | 75.9% | 70.7% | 72.6% |
-| Gradient Boosting | 80.3% | 81.9% | 77.7% | 79.5% |
-| **Voting ensemble** | **79.8%** | **82.2%** | **77.3%** | **79.4%** |
+| Single decision tree | 56.0% | 56.1% | 56.1% | 56.0% |
+| Random Forest | 73.9% | 76.2% | 70.6% | 72.8% |
+| Gradient Boosting | 79.4% | 80.1% | 76.8% | 78.3% |
+| **Voting ensemble** | **79.8%** | **81.4%** | **76.8%** | **78.7%** |
 
-Five-fold cross-validation accuracy: 79.5% (plus or minus 0.5%). 99.8% of test
+Five-fold cross-validation accuracy: 79.2% (plus or minus 1.1%). 99.8% of test
 predictions are the true class or the class next to it.
 
 ## Decisions worth knowing before the defence
 
 **Class bands.** `Exam_Score` only spans 55 to 101 and clusters around 67. The
 usual 40/45/50/60/70 marks would put nearly every student in one class and
-leave Fail empty, so scores are banded relative to the cohort: Fail up to 61,
-Pass 62 to 64, Lower Second 65 to 67, Upper Second 68 to 70, First Class 71 and
-above. Change `DEFAULT_CUTOFFS` in `ml/schema.py` to move them.
+leave Fail empty, so scores are banded relative to the cohort into five
+levels: up to 61, 62 to 64, 65 to 67, 68 to 70, and 71 and above. Change
+`DEFAULT_CUTOFFS` in `ml/schema.py` to move them. The levels are named per
+institution type (table above), so a level is the student's standing among
+peers, not a CGPA. A university Pass degree, where it still exists, has no
+level of its own: the model has five levels and a university needs six names.
 
 **SMOTE only in training.** Figure 3.4 of the report draws "Load and preprocess
 dataset" and "Apply SMOTE" inside the prediction flow. SMOTE balances training
@@ -137,11 +157,18 @@ training split for the same reason. Synthetic records keep their decimal
 values. The first version of this build used SMOTE-NC and rounded synthetic
 values to whole numbers, and scored 77.1%, about 2.7 points lower.
 
+**Same figures on any computer.** SMOTE's default neighbour search goes
+through the maths library, and the number of CPU threads changed the
+synthetic students and so the scores (a laptop and a server could differ by
+up to a point). The build uses a KD-tree search, which gives identical
+results whatever the hardware: `python train.py` reproduces the table above.
+
 **Ensemble versus its parts.** The ensemble beats a single decision tree by
-about 24 points and Random Forest by about 6. Gradient Boosting alone is level
-with it (0.5 point ahead on accuracy, the ensemble slightly ahead on
-precision). Do not claim the ensemble beats every component. The honest claim
-is that it clearly beats a single classifier and is as good as its best member.
+about 24 points and Random Forest by about 6. Against Gradient Boosting, its
+strongest member, it is ahead by 0.4 points on accuracy, 1.3 on precision and
+0.5 on F1, and level on recall (76.8% against 76.8%).
+The honest claim is that it clearly beats a single classifier and edges its best
+member; the margin over Gradient Boosting is small.
 
 **Units.** In the dataset `Hours_Studied` is hours per week (1 to 44) and
 `Tutoring_Sessions` is per month. Section 3.4.1 of the report says per day and
@@ -167,15 +194,20 @@ model was trained on and the result page flags any value outside it.
 ## Tests
 
 ```bash
-python -m unittest tests.test_system -v
+python -m unittest tests.test_system tests.test_scales_and_reports -v
 ```
 
-Thirty tests on a temporary database (`tests/test_postgres.py` adds four more
-that run only when `DATABASE_URL` points at an empty PostgreSQL database): the model matches Chapter Three (RF plus
-GB under a Voting Classifier, 19 inputs, five classes, 20,000+ balanced
-records, no test student in the training file), reported metrics reproduce,
-the web form gives the same class as the raw model, validation, roles,
+Forty-four tests on a temporary database. They check that the model matches
+Chapter Three (RF plus GB under a Voting Classifier, 19 inputs, five levels,
+20,000+ balanced records, no test student in the training file), that the
+reported metrics reproduce, that the web form gives the same class as the raw
+model, the grading scales, per-student PDF reports, recommendations in the CSV
+(with formula-like text made safe for Excel), "edit and predict again", the
+per-student timeline, upgrading an older database, validation, roles,
 privacy between users, CSRF, uploads and training.
+
+With `DATABASE_URL` pointing at an empty PostgreSQL database, the same suites
+run on PostgreSQL, and `tests/test_postgres.py` adds four checks of its own.
 
 ## Hosting
 
@@ -222,6 +254,8 @@ more, so do not retrain on a small instance.
 run.py                entry point
 train.py              command-line training
 ml/                   schema, pipeline, prediction service, advice text
+webapp/grading.py     class names for universities, polytechnics, NCE
+webapp/report.py      one-student PDF report
 webapp/               Flask app: auth, views, admin, templates, static
 data/                 dataset, uploads, balanced training export
 models/               ensemble.joblib, metrics.json
